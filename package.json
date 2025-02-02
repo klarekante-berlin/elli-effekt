@@ -1,0 +1,52 @@
+{
+  "name": "vite-project",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "normalize.css": "^8.0.1"
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true, 
+      "es2021": true 
+    },
+    "extends": ["eslint:recommended", "plugin:react/recommended"],
+    "parserOptions": {
+      "ecmaFeatures": {
+        "jsx": true 
+      },
+      "ecmaVersion": 12, 
+      "sourceType": "module" 
+    },
+    "rules": {
+      "no-console": "warn", 
+      "no-unused-vars": "warn", 
+      "eqeqeq": "error" 
+    }
+  },
+  "prettier": {
+    "singleQuote": true, 
+    "trailingComma": "es5", 
+    "semi": false 
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not op_mini all"
+  ],
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "postcss": "^8.4.31",
+    "autoprefixer": "^10.4.16"
+  }
+}

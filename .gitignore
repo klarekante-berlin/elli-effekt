@@ -1,0 +1,52 @@
+# Abhängigkeiten
+node_modules
+package-lock.json
+
+# Produktions Build
+dist
+dist-ssr
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor Verzeichnisse und Dateien
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Umgebungsvariablen
+.env
+.env.*
+!.env.example
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# Vite
+.vite/
+*.local
+
+# Temporäre Dateien
+*.tmp
+*.temp
+.cache
+
+# Coverage Verzeichnis
+coverage
+
+# ESLint Cache
+.eslintcache
+
+# Optional: Prettier Cache
+.prettierrc.cache 
