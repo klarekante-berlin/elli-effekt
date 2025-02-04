@@ -1,0 +1,43 @@
+.background-texture {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background-color: var(--color-primary);
+}
+
+.texture {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  transform: translateZ(0);
+}
+
+.texture-overall {
+  /* Option 1: Behält Seitenverhältnis bei und zeigt das gesamte Bild */
+  background-size: cover;
+  
+  /* Option 2: Füllt den gesamten Container, könnte Teile abschneiden */
+  /* background-size: cover; */
+  
+  opacity: 1;
+  mix-blend-mode: color-burn;
+}
+
+.texture-dust {
+  background-size: cover;
+  opacity: 0.43;
+  mix-blend-mode: difference;
+}
+
+.texture-overlay {
+  display: none; /* Entfernen des Overlays, da wir nur die beiden Texturen benötigen */
+} 
