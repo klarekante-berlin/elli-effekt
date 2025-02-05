@@ -38,29 +38,62 @@
 .text-container {
   position: relative;
   width: 100%;
-  max-width: 800px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
+  max-width: 1000px;
   padding: 2rem;
-  margin-bottom: 100px; /* Abstand zum Button */
+  overflow: hidden;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+}
+
+.text {
+  font-family: var(--font-amatic);
+  font-size: 4.5rem;
+  line-height: 1.4;
+  color: white;
+  text-align: center;
+}
+
+.word {
+  display: inline-block;
+  margin: 0 0.2em;
+  will-change: transform, opacity, filter;
+}
+
+.char {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+  font-weight: 700;
+  transform-origin: center center;
+  filter: blur(0);
 }
 
 .word-container {
   display: inline-flex;
   align-items: baseline;
   margin: 0 0.2em;
+  filter: brightness(1);
+  transition: filter 0.3s ease;
+  overflow: hidden;
+}
+
+.word-container.active {
+  filter: brightness(1.4);
 }
 
 .char-item {
   position: relative;
   display: inline-block;
   font-family: var(--font-amatic);
-  font-size: 2.5rem;
+  font-size: 4.5rem;
   line-height: 1.4;
-  color: var(--color-text);
-  transform-origin: center bottom;
+  color: white;
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+  will-change: transform, opacity;
+  font-weight: 700;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
 }
 
 @media (max-width: 768px) {
@@ -68,8 +101,8 @@
     padding: 1rem;
   }
 
-  .char-item {
-    font-size: 2rem;
+  .text {
+    font-size: 3rem;
   }
 
   .controls {

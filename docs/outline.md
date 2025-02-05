@@ -163,7 +163,7 @@ Create a Custom Hook for Lenis (src/hooks/useLenis.ts):
 
 // src/hooks/useLenis.ts
 import { useEffect } from 'react';
-import Lenis from '@studio-freight/lenis';
+import { ReactLenis, useLenis } from 'lenis/react';
 
 const useLenis = () => {
   useEffect(() => {

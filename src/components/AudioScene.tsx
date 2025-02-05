@@ -1,119 +1,220 @@
 import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import SplitType from 'split-type';
 import transcriptData from '../transciption_data/transcript_gsap.json';
 import '../styles/AudioScene.css';
 
-interface TimedText {
-  text: string;
-  startTime: number;
-  duration: number;
-}
-
-// Konvertiere die Segmente in unser TimedText-Format
-const textSequence: TimedText[] = transcriptData.segments.map((segment) => ({
-  text: segment.text,
-  startTime: segment.start,
-  duration: segment.end - segment.start
-}));
+gsap.registerPlugin(ScrollTrigger);
 
 const AudioScene: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const splitRef = useRef<SplitType | null>(null);
+  const [isAudioLoaded, setIsAudioLoaded] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
+  // Audio laden und vorbereiten
   useEffect(() => {
-    if (!textContainerRef.current) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleCanPlay = () => {
+      setIsAudioLoaded(true);
+    };
+
+    audio.addEventListener('canplay', handleCanPlay);
+    return () => audio.removeEventListener('canplay', handleCanPlay);
+  }, []);
+
+  // Benutzerinteraktion erkennen
+  useEffect(() => {
+    const handleInteraction = () => {
+      setHasInteracted(true);
+    };
+
+    window.addEventListener('click', handleInteraction);
+    window.addEventListener('scroll', handleInteraction);
+    window.addEventListener('keydown', handleInteraction);
+
+    return () => {
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('scroll', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+    };
+  }, []);
+
+  // Animation und Audio Setup
+  useEffect(() => {
+    if (!textContainerRef.current || !isAudioLoaded) return;
 
     if (timelineRef.current) {
       timelineRef.current.kill();
     }
 
+    // Container vorbereiten
+    textContainerRef.current.innerHTML = 
+      '<div class="text">Dies ist eine Audioaufnahme, die ich nutzen möchte, um auf einer Webseite eine Textanimation zu steuern.</div>';
+
+    // Text mit SplitType aufteilen
+    if (splitRef.current) {
+      splitRef.current.revert();
+    }
+
+    splitRef.current = new SplitType('.text', {
+      types: 'words,chars',
+      tagName: 'span'
+    });
+
+    // Timeline erstellen
     timelineRef.current = gsap.timeline({ 
       paused: true,
       defaults: {
-        ease: "back.out(1.7)",
-        duration: 0.2
+        ease: "power4.out",
+        duration: 0.6
       }
     });
 
-    // Text-Elemente erstellen und Animationen hinzufügen
-    textSequence.forEach((item) => {
-      const wordContainer = document.createElement('div');
-      wordContainer.className = 'word-container';
-      
-      // Wort in einzelne Buchstaben aufteilen
-      const chars = item.text.split('');
-      
-      chars.forEach((char, charIndex) => {
-        const charElement = document.createElement('span');
-        charElement.className = 'char-item';
-        charElement.textContent = char;
-        wordContainer.appendChild(charElement);
-
-        // Initial-State für jeden Buchstaben
-        gsap.set(charElement, {
-          opacity: 0,
-          scale: 0.5,
-          display: 'inline-block'
-        });
-
-        // Berechne die Verzögerung für jeden Buchstaben
-        const charDelay = charIndex * 0.03;
-
-        // Einblend-Animation für jeden Buchstaben
-        timelineRef.current?.to(charElement, {
-          opacity: 1,
-          scale: 1.2,
-          duration: 0.15,
-        }, item.startTime + charDelay);
-
-        // Normalisierungs-Animation
-        timelineRef.current?.to(charElement, {
-          scale: 1,
-          duration: 0.2,
-          ease: "elastic.out(1, 0.8)"
-        }, item.startTime + charDelay + 0.15);
-      });
-
-      // Füge ein Leerzeichen nach jedem Wort hinzu
-      const space = document.createElement('span');
-      space.className = 'char-item';
-      space.textContent = ' ';
-      space.style.display = 'inline-block';
-      space.style.width = '0.5em';
-      wordContainer.appendChild(space);
-
-      textContainerRef.current?.appendChild(wordContainer);
+    // Initial states
+    gsap.set(splitRef.current.chars, { 
+      opacity: 0,
+      scale: 0.3,
+      filter: 'blur(10px)',
+      display: 'inline-block',
+      transformOrigin: 'center center'
     });
 
-    setIsLoading(false);
+    // Text Segmente verarbeiten
+    const segments = transcriptData.segments;
+    
+    // Wörter den Segmenten zuordnen
+    splitRef.current.words?.forEach((word, wordIndex) => {
+      // Finde das passende Segment für dieses Wort
+      let currentPosition = 0;
+      let segmentStart = 0;
+      let segmentIndex = 0;
+
+      // Durchlaufe die Segmente, bis wir das richtige für dieses Wort finden
+      for (let i = 0; i < segments.length; i++) {
+        const segmentWords = segments[i].text.split(' ');
+        if (currentPosition + segmentWords.length > wordIndex) {
+          segmentIndex = i;
+          segmentStart = segments[i].start;
+          break;
+        }
+        currentPosition += segmentWords.length;
+      }
+
+      // Berechne die relative Position des Wortes im Segment
+      const relativeWordIndex = wordIndex - currentPosition;
+      const startTime = segmentStart + (relativeWordIndex * 0.15); // 150ms zwischen Wörtern
+
+      // Hole alle Buchstaben des Wortes
+      const chars = word.querySelectorAll('.char');
+
+      // Animiere jeden Buchstaben des Wortes
+      chars.forEach((char, charIndex) => {
+        const charStartTime = startTime + (charIndex * 0.04);
+
+        // Buchstaben einblenden, entblurren und vergrößern
+        timelineRef.current?.to(char, {
+          opacity: 1,
+          scale: 1.4,
+          filter: 'blur(0px)',
+          duration: 0.5,
+          ease: "back.out(1.7)",
+        }, charStartTime);
+
+        // Buchstaben auf normale Größe zurückschrumpfen
+        timelineRef.current?.to(char, {
+          scale: 1,
+          duration: 0.3,
+          ease: "power2.out"
+        }, charStartTime + 0.3);
+      });
+
+      // Highlight-Animation für das gesamte Wort
+      timelineRef.current?.to(word, {
+        color: '#ffffff',
+        textShadow: '0 0 20px rgba(255,255,255,0.6)',
+        duration: 0.4,
+        ease: "power2.inOut"
+      }, startTime + 0.2);
+
+      // Highlight zurücksetzen
+      timelineRef.current?.to(word, {
+        color: '#ffffff',
+        textShadow: '0 0 15px rgba(255,255,255,0.3)',
+        duration: 0.4,
+        ease: "power2.inOut"
+      }, startTime + 0.7);
+    });
+
+    // ScrollTrigger für automatischen Start
+    const trigger = ScrollTrigger.create({
+      trigger: "#audio-scene",
+      start: "top center",
+      end: "bottom center",
+      onEnter: () => {
+        if (audioRef.current && timelineRef.current) {
+          const playPromise = audioRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.log("Auto-play prevented:", error);
+              // Wenn Autoplay verhindert wurde, setzen wir hasInteracted auf false
+              setHasInteracted(false);
+            });
+          }
+          timelineRef.current.play();
+        }
+      },
+      onLeave: () => {
+        if (audioRef.current && timelineRef.current) {
+          audioRef.current.pause();
+          timelineRef.current.pause();
+        }
+      },
+      onLeaveBack: () => {
+        if (audioRef.current && timelineRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          timelineRef.current.pause(0);
+        }
+      },
+      onEnterBack: () => {
+        if (audioRef.current && timelineRef.current) {
+          const playPromise = audioRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.log("Auto-play prevented:", error);
+              setHasInteracted(false);
+            });
+          }
+          timelineRef.current.play();
+        }
+      }
+    });
+
+    // Audio vorbereiten
+    if (audioRef.current) {
+      audioRef.current.volume = 1;
+      audioRef.current.currentTime = 0;
+    }
 
     // Cleanup
     return () => {
-      if (textContainerRef.current) {
-        textContainerRef.current.innerHTML = '';
+      if (splitRef.current) {
+        splitRef.current.revert();
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
       }
       timelineRef.current?.kill();
+      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
     };
-  }, []);
-
-  const handlePlay = async () => {
-    if (!audioRef.current || !timelineRef.current || isLoading) return;
-
-    if (!isPlaying) {
-      setIsPlaying(true);
-      audioRef.current.currentTime = 0;
-      timelineRef.current.seek(0);
-      audioRef.current.play();
-      timelineRef.current.play();
-    } else {
-      setIsPlaying(false);
-      audioRef.current.pause();
-      timelineRef.current.pause();
-    }
-  };
+  }, [isAudioLoaded, hasInteracted]);
 
   // Audio-Zeit-Update
   useEffect(() => {
@@ -131,29 +232,12 @@ const AudioScene: React.FC = () => {
   }, []);
 
   return (
-    <div className="audio-scene">
+    <div id="audio-scene" className="audio-scene">
       <div className="text-container" ref={textContainerRef} />
-      
-      <div className="controls">
-        <button 
-          onClick={handlePlay} 
-          className="play-button"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Laden...' : isPlaying ? 'Pause' : 'Play'}
-        </button>
-      </div>
-
       <audio 
         ref={audioRef} 
         src="/audio/toni.mp3" 
         preload="auto"
-        onEnded={() => {
-          setIsPlaying(false);
-          if (timelineRef.current) {
-            timelineRef.current.pause(0);
-          }
-        }}
       />
     </div>
   );
