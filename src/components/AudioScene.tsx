@@ -7,7 +7,11 @@ import '../styles/AudioScene.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const AudioScene: React.FC = () => {
+interface AudioSceneProps {
+  onAnimationComplete?: () => void;
+}
+
+const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
@@ -216,7 +220,7 @@ const AudioScene: React.FC = () => {
     };
   }, [isAudioLoaded, hasInteracted]);
 
-  // Audio-Zeit-Update
+  // Audio-Zeit-Update und Ende erkennen
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -227,9 +231,20 @@ const AudioScene: React.FC = () => {
       }
     };
 
+    const handleEnded = () => {
+      if (onAnimationComplete) {
+        onAnimationComplete();
+      }
+    };
+
     audio.addEventListener('timeupdate', handleTimeUpdate);
-    return () => audio.removeEventListener('timeupdate', handleTimeUpdate);
-  }, []);
+    audio.addEventListener('ended', handleEnded);
+    
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [onAnimationComplete]);
 
   return (
     <div id="audio-scene" className="audio-scene">
