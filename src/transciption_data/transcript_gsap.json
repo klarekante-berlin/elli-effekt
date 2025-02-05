@@ -1,0 +1,100 @@
+{
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 0.36,
+      "text": "Dies",
+      "type": "word"
+    },
+    {
+      "start": 0.36,
+      "end": 0.52,
+      "text": "ist",
+      "type": "word"
+    },
+    {
+      "start": 0.52,
+      "end": 0.74,
+      "text": "eine",
+      "type": "word"
+    },
+    {
+      "start": 0.74,
+      "end": 1.68,
+      "text": "Audioaufnahme,",
+      "type": "word"
+    },
+    {
+      "start": 1.68,
+      "end": 1.8,
+      "text": "die",
+      "type": "word"
+    },
+    {
+      "start": 1.8,
+      "end": 1.96,
+      "text": "ich",
+      "type": "word"
+    },
+    {
+      "start": 1.96,
+      "end": 2.18,
+      "text": "nutzen",
+      "type": "word"
+    },
+    {
+      "start": 2.18,
+      "end": 2.6,
+      "text": "möchte,",
+      "type": "word"
+    },
+    {
+      "start": 2.6,
+      "end": 2.82,
+      "text": "um",
+      "type": "word"
+    },
+    {
+      "start": 2.82,
+      "end": 3.1,
+      "text": "auf",
+      "type": "word"
+    },
+    {
+      "start": 3.1,
+      "end": 3.46,
+      "text": "einer",
+      "type": "word"
+    },
+    {
+      "start": 3.46,
+      "end": 4.1,
+      "text": "Webseite",
+      "type": "word"
+    },
+    {
+      "start": 4.1,
+      "end": 4.34,
+      "text": "eine",
+      "type": "word"
+    },
+    {
+      "start": 4.34,
+      "end": 5.48,
+      "text": "Textanimation",
+      "type": "word"
+    },
+    {
+      "start": 5.48,
+      "end": 5.68,
+      "text": "zu",
+      "type": "word"
+    },
+    {
+      "start": 5.68,
+      "end": 6.38,
+      "text": "steuern.",
+      "type": "word"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { ReactLenis, useLenis } from 'lenis/react';
 import Section from './components/Section';
 import AnimatedText from './components/AnimatedText';
 import BackgroundTexture from './components/BackgroundTexture';
+import AudioScene from './components/AudioScene';
 import './styles/global.css';
 
 const App: React.FC = () => {
@@ -22,19 +23,7 @@ const App: React.FC = () => {
       <BackgroundTexture />
       <div className="App">
         <Section height="100vh">
-          <AnimatedText 
-            text="Willkommen zum Scrollytelling"
-            animation="chars"
-            stagger={0.05}
-            duration={0.8}
-          />
-          <AnimatedText 
-            text="Scrollen Sie nach unten, um die smooth scroll Effekte zu sehen."
-            tag="p"
-            animation="words"
-            stagger={0.02}
-            delay={0.5}
-          />
+          <AudioScene />
         </Section>
 
         <Section height="120vh">
