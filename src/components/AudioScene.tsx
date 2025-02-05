@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import SplitType from 'split-type';
-import transcriptData from '../transciption_data/transcript_gsap.json';
+import transcriptData from '../transciption_data/transcript_elli_scene_01.json';
 import '../styles/AudioScene.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -55,7 +55,7 @@ const AudioScene: React.FC = () => {
 
     // Container vorbereiten
     textContainerRef.current.innerHTML = 
-      '<div class="text">Dies ist eine Audioaufnahme, die ich nutzen möchte, um auf einer Webseite eine Textanimation zu steuern.</div>';
+      '<div class="text">Hey, ich bin Elli. Vor genau 89 Tagen habe ich alles Vertraute gegen Berlin eingetauscht. Naja, fast alles. Mein Morgenritual zum Beispiel habe ich einfach mitgenommen.</div>';
 
     // Text mit SplitType aufteilen
     if (splitRef.current) {
@@ -236,7 +236,7 @@ const AudioScene: React.FC = () => {
       <div className="text-container" ref={textContainerRef} />
       <audio 
         ref={audioRef} 
-        src="/audio/toni.mp3" 
+        src="/audio/elli_scene_01.mp3" 
         preload="auto"
       />
     </div>

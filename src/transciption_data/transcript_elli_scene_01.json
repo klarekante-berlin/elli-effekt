@@ -1,0 +1,160 @@
+{
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 0.34,
+      "text": "Hey,",
+      "type": "word"
+    },
+    {
+      "start": 0.34,
+      "end": 0.82,
+      "text": "ich",
+      "type": "word"
+    },
+    {
+      "start": 0.82,
+      "end": 0.96,
+      "text": "bin",
+      "type": "word"
+    },
+    {
+      "start": 0.96,
+      "end": 1.3,
+      "text": "Elli.",
+      "type": "word"
+    },
+    {
+      "start": 1.3,
+      "end": 2.12,
+      "text": "Vor",
+      "type": "word"
+    },
+    {
+      "start": 2.12,
+      "end": 2.4,
+      "text": "genau",
+      "type": "word"
+    },
+    {
+      "start": 2.4,
+      "end": 2.98,
+      "text": "89",
+      "type": "word"
+    },
+    {
+      "start": 2.98,
+      "end": 3.64,
+      "text": "Tagen",
+      "type": "word"
+    },
+    {
+      "start": 3.64,
+      "end": 4.12,
+      "text": "habe",
+      "type": "word"
+    },
+    {
+      "start": 4.12,
+      "end": 4.3,
+      "text": "ich",
+      "type": "word"
+    },
+    {
+      "start": 4.3,
+      "end": 4.62,
+      "text": "alles",
+      "type": "word"
+    },
+    {
+      "start": 4.62,
+      "end": 5.12,
+      "text": "Vertraute",
+      "type": "word"
+    },
+    {
+      "start": 5.12,
+      "end": 5.3,
+      "text": "gegen",
+      "type": "word"
+    },
+    {
+      "start": 5.3,
+      "end": 5.66,
+      "text": "Berlin",
+      "type": "word"
+    },
+    {
+      "start": 5.66,
+      "end": 6.58,
+      "text": "eingetauscht.",
+      "type": "word"
+    },
+    {
+      "start": 6.58,
+      "end": 7.48,
+      "text": "Naja,",
+      "type": "word"
+    },
+    {
+      "start": 7.48,
+      "end": 8.14,
+      "text": "fast",
+      "type": "word"
+    },
+    {
+      "start": 8.14,
+      "end": 9.1,
+      "text": "alles.",
+      "type": "word"
+    },
+    {
+      "start": 9.1,
+      "end": 9.82,
+      "text": "Mein",
+      "type": "word"
+    },
+    {
+      "start": 9.82,
+      "end": 10.58,
+      "text": "Morgenritual",
+      "type": "word"
+    },
+    {
+      "start": 10.58,
+      "end": 10.78,
+      "text": "zum",
+      "type": "word"
+    },
+    {
+      "start": 10.78,
+      "end": 11.2,
+      "text": "Beispiel",
+      "type": "word"
+    },
+    {
+      "start": 11.2,
+      "end": 11.6,
+      "text": "habe",
+      "type": "word"
+    },
+    {
+      "start": 11.6,
+      "end": 11.82,
+      "text": "ich",
+      "type": "word"
+    },
+    {
+      "start": 11.82,
+      "end": 12.06,
+      "text": "einfach",
+      "type": "word"
+    },
+    {
+      "start": 12.06,
+      "end": 12.82,
+      "text": "mitgenommen.",
+      "type": "word"
+    }
+  ]
+}
