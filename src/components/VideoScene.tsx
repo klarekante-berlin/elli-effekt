@@ -27,22 +27,35 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
   const playerRef = useRef<ReactPlayerInstance>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Standard: stumm
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isInView, setIsInView] = useState(false);
   const [userPaused, setUserPaused] = useState(false);
+
+  // Debug-Effekt für Zustandsänderungen
+  useEffect(() => {
+    console.log('State Update:', {
+      isVideoPlaying,
+      isVideoReady,
+      isInView,
+      userPaused,
+      isReadyToPlay
+    });
+  }, [isVideoPlaying, isVideoReady, isInView, userPaused, isReadyToPlay]);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     const trigger = ScrollTrigger.create({
       trigger: containerRef.current,
-      start: "top 80%",
-      end: "bottom 20%",
+      start: "top center",
+      end: "bottom center",
+      markers: true, // Debug-Marker
       onEnter: () => {
         console.log('Video Scene: Enter');
         setIsInView(true);
         if (!userPaused && isVideoReady) {
+          console.log('Attempting to play video on enter');
           setIsVideoPlaying(true);
         }
       },
@@ -55,6 +68,7 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
         console.log('Video Scene: Enter Back');
         setIsInView(true);
         if (!userPaused && isVideoReady) {
+          console.log('Attempting to play video on enter back');
           setIsVideoPlaying(true);
         }
       },
@@ -70,10 +84,20 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
     };
   }, [isVideoReady, userPaused]);
 
+  // Vereinfachter Effekt für isReadyToPlay
+  useEffect(() => {
+    if (isReadyToPlay && isInView && !userPaused) {
+      console.log('Ready to play effect triggered');
+      setIsVideoPlaying(true);
+    }
+  }, [isReadyToPlay, isInView]);
+
   const handleVideoReady = () => {
     console.log('Video ready');
     setIsVideoReady(true);
+    // Automatisch abspielen, wenn die Szene bereit ist
     if (isInView && !userPaused) {
+      console.log('Auto-playing after ready');
       setIsVideoPlaying(true);
     }
   };
@@ -84,8 +108,10 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
   };
 
   const handlePlayPause = () => {
-    setUserPaused(!isVideoPlaying);
-    setIsVideoPlaying(!isVideoPlaying);
+    console.log('Play/Pause clicked');
+    const newPlayingState = !isVideoPlaying;
+    setUserPaused(!newPlayingState);
+    setIsVideoPlaying(newPlayingState);
   };
 
   const handleVolumeToggle = () => {
@@ -125,8 +151,8 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
             className="react-player"
             onReady={handleVideoReady}
             onError={handleVideoError}
-            onPlay={() => console.log('Video started playing')}
-            onPause={() => console.log('Video paused')}
+            onPlay={() => console.log('Video actually started playing')}
+            onPause={() => console.log('Video actually paused')}
             config={{
               file: {
                 attributes: {
