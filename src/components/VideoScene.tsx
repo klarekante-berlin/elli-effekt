@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ReactPlayer from 'react-player/lazy';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
 import videoFrame from '../assets/images/video_frame.png';
+import videoSource from '../assets/videos/WhatIf_Screen_002_Video.mp4';
 import '../styles/VideoScene.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -10,102 +13,146 @@ interface VideoSceneProps {
   isReadyToPlay?: boolean;
 }
 
+interface ReactPlayerInstance {
+  seekTo: (amount: number, type: 'seconds' | 'fraction') => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  getInternalPlayer: (key?: string) => any;
+}
+
 const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLImageElement>(null);
-  const videoRef = useRef<HTMLIFrameElement>(null);
-  const timelineRef = useRef<gsap.core.Timeline | null>(null);
+  const playerWrapperRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<ReactPlayerInstance>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isInView, setIsInView] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
 
-  // Timeline für die Eingangs-Animation
   useEffect(() => {
-    if (!containerRef.current || !frameRef.current || !videoRef.current) return;
-
-    // Timeline erstellen
-    timelineRef.current = gsap.timeline({ paused: true })
-      .set([frameRef.current, videoRef.current], {
-        opacity: 0,
-        scale: 0.8,
-        y: 50
-      })
-      .to([frameRef.current, videoRef.current], {
-        opacity: 1,
-        scale: 1,
-        y: 0,
-        duration: 1,
-        ease: "power3.out",
-        stagger: 0.1
-      });
-
-    return () => {
-      if (timelineRef.current) {
-        timelineRef.current.kill();
-      }
-    };
-  }, []);
-
-  // ScrollTrigger und Video-Kontrolle
-  useEffect(() => {
-    if (!containerRef.current || !timelineRef.current) return;
+    if (!containerRef.current) return;
 
     const trigger = ScrollTrigger.create({
       trigger: containerRef.current,
-      start: "top center",
-      end: "bottom center",
+      start: "top 80%",
+      end: "bottom 20%",
       onEnter: () => {
-        if (isReadyToPlay && timelineRef.current && !isVideoPlaying) {
-          timelineRef.current.play();
+        console.log('Video Scene: Enter');
+        setIsInView(true);
+        if (!userPaused && isVideoReady) {
           setIsVideoPlaying(true);
         }
       },
       onLeave: () => {
-        if (timelineRef.current && isVideoPlaying) {
-          timelineRef.current.reverse();
-          setIsVideoPlaying(false);
-        }
+        console.log('Video Scene: Leave');
+        setIsInView(false);
+        setIsVideoPlaying(false);
       },
       onEnterBack: () => {
-        if (isReadyToPlay && timelineRef.current && !isVideoPlaying) {
-          timelineRef.current.play();
+        console.log('Video Scene: Enter Back');
+        setIsInView(true);
+        if (!userPaused && isVideoReady) {
           setIsVideoPlaying(true);
         }
       },
       onLeaveBack: () => {
-        if (timelineRef.current && isVideoPlaying) {
-          timelineRef.current.reverse();
-          setIsVideoPlaying(false);
-        }
+        console.log('Video Scene: Leave Back');
+        setIsInView(false);
+        setIsVideoPlaying(false);
       }
     });
-
-    // Wenn wir direkt auf der Szene landen und bereit zum Abspielen sind
-    if (trigger.isActive && isReadyToPlay && !isVideoPlaying) {
-      timelineRef.current.play();
-      setIsVideoPlaying(true);
-    }
 
     return () => {
       trigger.kill();
     };
-  }, [isReadyToPlay, isVideoPlaying]);
+  }, [isVideoReady, userPaused]);
+
+  const handleVideoReady = () => {
+    console.log('Video ready');
+    setIsVideoReady(true);
+    if (isInView && !userPaused) {
+      setIsVideoPlaying(true);
+    }
+  };
+
+  const handleVideoError = (error: unknown) => {
+    console.error('Video error:', error);
+    setIsVideoReady(false);
+  };
+
+  const handlePlayPause = () => {
+    setUserPaused(!isVideoPlaying);
+    setIsVideoPlaying(!isVideoPlaying);
+  };
+
+  const handleVolumeToggle = () => {
+    setIsMuted(!isMuted);
+  };
+
+  const handleFullscreenToggle = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
 
   return (
-    <div id="video-scene" className="video-scene" ref={containerRef}>
+    <div 
+      id="video-scene" 
+      className="video-scene" 
+      ref={containerRef}
+    >
       <div className="frame-container">
-        <iframe
-          ref={videoRef}
-          src={isVideoPlaying ? "https://streamable.com/e/8m3e1s?autoplay=1&nocontrols=1" : "about:blank"}
-          className="video-embed"
-          allow="autoplay"
-          title="Streamable Video"
-          frameBorder="0"
-        />
+        <div 
+          ref={playerWrapperRef} 
+          className={`player-wrapper ${isVideoPlaying ? 'playing' : ''}`}
+        >
+          <ReactPlayer
+            ref={playerRef}
+            url={videoSource}
+            playing={isVideoPlaying}
+            loop={true}
+            muted={isMuted}
+            width="100%"
+            height="100%"
+            playsinline
+            className="react-player"
+            onReady={handleVideoReady}
+            onError={handleVideoError}
+            onPlay={() => console.log('Video started playing')}
+            onPause={() => console.log('Video paused')}
+            config={{
+              file: {
+                attributes: {
+                  crossOrigin: "anonymous"
+                }
+              }
+            }}
+          />
+        </div>
         <img 
           ref={frameRef}
           src={videoFrame} 
           alt="Video Frame" 
           className="video-frame"
         />
+        <div className="video-controls">
+          <button onClick={handlePlayPause} className="control-button">
+            {isVideoPlaying ? <Pause size={24} /> : <Play size={24} />}
+          </button>
+          <button onClick={handleVolumeToggle} className="control-button">
+            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+          </button>
+          <button onClick={handleFullscreenToggle} className="control-button">
+            {isFullscreen ? <Minimize size={24} /> : <Maximize size={24} />}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -5,37 +5,86 @@
   justify-content: center;
   align-items: center;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .frame-container {
-  width: 80%;
-  max-width: 1200px;
+  width: 1200px;
   aspect-ratio: 16/9;
-  position: relative;
 }
 
-.video-embed {
-  width: 74%;
-  height: 80%;
+.player-wrapper {
   position: absolute;
-  top: 2%;
-  left: 13%;
-  border: none;
+  width: 82%;
+  height: 82%;
+  top: 2.2%;
+  left: 9%;
   z-index: 1;
-  background: black;
   border-radius: 8px;
-  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.5s ease-out;
 }
 
-.video-frame {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+.player-wrapper.playing {
+  opacity: 1;
+}
+
+.react-player {
   position: absolute;
   top: 0;
   left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+.video-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   z-index: 2;
-  pointer-events: none;
   will-change: transform, opacity;
+  pointer-events: none;
+  display: block;
+}
+
+.video-controls {
+  position: absolute;
+  bottom: 20%;
+  right: 10%;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+  padding: 8px;
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+}
+
+.control-button {
+  background: transparent;
+  border: none;
+  color: #000;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.control-button:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.control-button:active {
+  transform: scale(0.95);
+}
+
+.control-button svg {
+  filter: none;
+  stroke-width: 2.5;
 } 

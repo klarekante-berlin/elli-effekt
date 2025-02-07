@@ -1,0 +1,408 @@
+# Elli-Effekt Projekt Entwicklungsrichtlinien
+# Ein umfassender Leitfaden für die Entwicklung mit React, TypeScript, GSAP und Web Core Vitals
+
+# Entwicklungsphilosophie
+- Clean Code und Wartbarkeit priorisieren
+- Performance-First Ansatz mit Web Core Vitals
+- Komponenten-getriebene Entwicklung
+- Barrierefreiheit als Grundprinzip
+- Mobile-First und Responsive Design
+
+# Projektstruktur
+Verzeichnisstruktur
+- src/
+  - components/     # Wiederverwendbare UI-Komponenten
+  - styles/        # CSS Module und globale Styles
+  - hooks/         # Custom React Hooks
+  - types/         # TypeScript Definitionen
+  - assets/        # Statische Assets
+  - sections/      # Seitenspezifische Komponenten
+  - transciption_data/ # Transkriptionsdaten
+
+# Code-Style
+Allgemeine Regeln
+- Einrückung: 2 Spaces
+- Einfache Anführungszeichen für Strings
+- Semikolons am Ende jeder Anweisung
+- Maximale Zeilenlänge: 100 Zeichen
+- TypeScript strict mode aktiviert
+- ESLint und Prettier für Codeformatierung
+
+# Namenskonventionen
+Komponenten und Dateien
+- Komponenten: PascalCase (VideoScene.tsx)
+- Styles: ComponentName.css
+- Hooks: useHookName
+- Types/Interfaces: IPascalCase
+- CSS-Klassen: kebab-case
+
+# React & TypeScript Best Practices
+Komponenten
+- Funktionale Komponenten mit TypeScript
+- Props-Interfaces für jede Komponente
+- Explicit Return Types
+- Proper Event Typing
+- Memoization für Performance-kritische Komponenten
+
+# GSAP Animation Standards
+GSAP React Integration
+- Import GSAP als: import gsap from 'gsap'
+- Plugins importieren: import { ScrollTrigger, ScrollSmoother } from 'gsap/all'
+- Plugins registrieren: gsap.registerPlugin(ScrollTrigger, ScrollSmoother)
+- useGSAP Hook für React-Integration verwenden
+- Cleanup durch return () => context.revert()
+
+GSAP Hooks und Komponenten
+- useGSAP für Animationen innerhalb von Komponenten
+- useLayoutEffect für initiale Animationen
+- useRef für DOM-Referenzen
+- useIsomorphicLayoutEffect für SSR-Kompatibilität
+
+Animation Best Practices
+- Timeline-basierte Animationen bevorzugen
+- Matchmedia für responsive Animationen
+- Performance-Optimierung durch will-change
+- GPU-beschleunigte Eigenschaften bevorzugen (transform, opacity)
+- ScrollTrigger für Scroll-basierte Animationen
+- ScrollSmoother für Smooth Scrolling
+- GSDevTools nur in Entwicklungsumgebung
+
+Beispiel-Komponente mit GSAP React:
+```tsx
+import { useRef } from 'react'
+import { useGSAP } from '@gsap/react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import styles from './ComponentName.css'
+
+gsap.registerPlugin(ScrollTrigger)
+
+interface ComponentNameProps {
+  // Props Interface
+}
+
+export const ComponentName: FC<ComponentNameProps> = ({ props }) => {
+  const container = useRef<HTMLDivElement>(null)
+  const element = useRef<HTMLDivElement>(null)
+
+  useGSAP(() => {
+    // GSAP Animationen hier
+    gsap.to(element.current, {
+      x: 100,
+      scrollTrigger: {
+        trigger: element.current,
+        start: 'top center',
+        end: 'bottom center',
+        scrub: true
+      }
+    })
+  }, { scope: container }) // scope für automatisches Cleanup
+
+  return (
+    <div ref={container} className={styles.container}>
+      <div ref={element} className={styles.element}>
+        {/* JSX */}
+      </div>
+    </div>
+  )
+}
+```
+
+GSAP Timeline Management
+- Timelines für komplexe Animationen
+- Labels für bessere Organisation
+- Verschachtelte Timelines für modulare Animation
+- Export von Timelines für wiederverwendbare Animationen
+
+Performance Optimierung
+- Vermeidung von Layout Thrashing
+- Batch-Animationen in Timelines
+- Force3D: true für bessere Performance
+- Lazy Loading von GSAP Plugins
+- RequestAnimationFrame für Custom Animations
+
+# Responsive Design
+Breakpoints
+- mobile: 320px - 480px
+- tablet: 481px - 768px
+- laptop: 769px - 1024px
+- desktop: 1280px+
+
+Media Queries
+- Mobile-First Approach
+- Flexbox/Grid für Layouts
+- Relative Einheiten (rem, em, vh, vw)
+- Fluid Typography
+
+# Web Core Vitals
+Performance Metriken
+- LCP (Largest Contentful Paint) < 2.5s
+- FID (First Input Delay) < 100ms
+- CLS (Cumulative Layout Shift) < 0.1
+
+Optimierungen
+- Lazy Loading für Bilder und Komponenten
+- Code-Splitting nach Routes
+- Asset-Optimierung
+- Preloading kritischer Assets
+- Performance Monitoring
+
+# Komponenten-Struktur
+```tsx
+import { FC, useRef, useLayoutEffect } from 'react'
+import gsap from 'gsap'
+import styles from './ComponentName.css'
+
+interface ComponentNameProps {
+  // Props Interface
+}
+
+export const ComponentName: FC<ComponentNameProps> = ({ props }) => {
+  const elementRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const ctx = gsap.context(() => {
+      // GSAP Animationen
+    }, elementRef)
+
+    return () => ctx.revert()
+  }, [])
+
+  return (
+    <div ref={elementRef} className={styles.container}>
+      {/* JSX */}
+    </div>
+  )
+}
+```
+
+# Testing
+- Jest und React Testing Library
+- Komponenten-Tests
+- Animation-Tests
+- Accessibility Tests
+- Performance Tests
+
+# Dokumentation
+- JSDoc für Komponenten und Funktionen
+- README.md für jede Komponente
+- Storybook für UI-Dokumentation
+- Performance-Dokumentation
+- Animation-Dokumentation
+
+# Smooth Scrolling mit Lenis
+Lenis React Integration
+- Installation: npm i lenis
+- Import: import { ReactLenis, useLenis } from 'lenis/react'
+- Kontext-basierte Implementierung für React
+- Automatische Instanz-Verwaltung durch Komponenten-Wrapper
+
+Basis Setup mit React
+```tsx
+import { ReactLenis, useLenis } from 'lenis/react'
+
+function App() {
+  const lenis = useLenis(({ scroll }) => {
+    // Scroll Event Handling
+  })
+
+  return (
+    <ReactLenis root>
+      {/* content */}
+    </ReactLenis>
+  )
+}
+```
+
+Lenis React Props
+- options: Lenis Konfigurationsoptionen
+- root: Lenis wird auf dem <html> Element initialisiert (Default: false)
+- className: Klassenname für den Wrapper (Default: '')
+
+Lenis Hooks
+- useLenis Hook gibt die Lenis-Instanz zurück
+- Hook Parameter:
+  - callback: Funktion die bei Scroll-Events aufgerufen wird
+  - deps: Trigger callback bei Änderungen
+  - priority: Steuerung der Callback-Ausführungsreihenfolge
+
+# Lenis + GSAP Integration
+Custom RAF Loop Setup:
+```tsx
+import { ReactLenis } from 'lenis/react'
+import { useEffect, useRef } from 'react'
+
+function App() {
+  const lenisRef = useRef()
+  
+  useEffect(() => {
+    function update(time) {
+      lenisRef.current?.lenis?.raf(time)
+    }
+  
+    const rafId = requestAnimationFrame(update)
+  
+    return () => cancelAnimationFrame(rafId)
+  }, [])
+  
+  return (
+    <ReactLenis options={{ autoRaf: false }} ref={lenisRef}>
+      {/* content */}
+    </ReactLenis>
+  )
+}
+```
+
+GSAP Integration Setup:
+```tsx
+import gsap from 'gsap'
+import { ReactLenis } from 'lenis/react'
+import { useEffect, useRef } from 'react'
+
+function App() {
+  const lenisRef = useRef()
+  
+  useEffect(() => {
+    function update(time) {
+      lenisRef.current?.lenis?.raf(time * 1000)
+    }
+  
+    gsap.ticker.add(update)
+  
+    return () => gsap.ticker.remove(update)
+  }, [])
+  
+  return (
+    <ReactLenis options={{ autoRaf: false }} ref={lenisRef}>
+      {/* content */}
+    </ReactLenis>
+  )
+}
+```
+
+Lenis Best Practices
+- Verwendung des Kontext-basierten Ansatzes
+- Proper Cleanup in useEffect
+- autoRaf: false bei Custom Animation Loops
+- Korrekte TypeScript Typisierung mit LenisRef
+- Performance Monitoring durch Scroll Events
+
+# Video Integration mit React Player
+Video Setup
+- Installation: npm i react-player
+- Import: import ReactPlayer from 'react-player'
+- Video Assets: src/assets/videos/
+
+Video Komponenten Standards
+```tsx
+import ReactPlayer from 'react-player'
+import { useRef } from 'react'
+import styles from './VideoComponent.css'
+
+interface VideoComponentProps {
+  videoUrl: string
+  playing?: boolean
+  loop?: boolean
+  muted?: boolean
+  playbackRate?: number
+}
+
+export const VideoComponent: FC<VideoComponentProps> = ({
+  videoUrl,
+  playing = false,
+  loop = true,
+  muted = true,
+  playbackRate = 1,
+}) => {
+  const playerRef = useRef<ReactPlayer>(null)
+
+  return (
+    <div className={styles.playerWrapper}>
+      <ReactPlayer
+        ref={playerRef}
+        url={`${process.env.PUBLIC_URL}/assets/videos/${videoUrl}`}
+        className={styles.reactPlayer}
+        playing={playing}
+        loop={loop}
+        muted={muted}
+        playbackRate={playbackRate}
+        width="100%"
+        height="100%"
+        onReady={() => console.log('Video ready')}
+        onStart={() => console.log('Video started')}
+        onPause={() => console.log('Video paused')}
+        onEnded={() => console.log('Video ended')}
+        onError={(e) => console.error('Video error:', e)}
+      />
+    </div>
+  )
+}
+```
+
+Responsive Video Styling
+```css
+.playerWrapper {
+  position: relative;
+  padding-top: 56.25%; /* 16:9 Aspect Ratio */
+  background: #000;
+}
+
+.reactPlayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+```
+
+React Player Best Practices
+- Immer useRef für Player-Instanz verwenden
+- Responsive Design durch Wrapper mit korrektem Aspect Ratio
+- Error Handling für alle Video Events
+- Lazy Loading für bessere Performance
+- Muted Autoplay für Mobile Support
+
+Video Performance Optimierung
+- Preload="auto" nur für kritische Videos
+- Lazy Loading für Videos below the fold
+- Korrekte Video-Kodierung (mp4, webm)
+- Responsive Sourcen für verschiedene Bildschirmgrößen
+- Video-Kompression für Web-Optimierung
+
+Video Controls und Interaktivität
+- Custom Controls für einheitliches Design
+- Keyboard Navigation Support
+- Progress Bar mit Preview
+- Volume Controls
+- Playback Speed Controls
+
+Video Event Handling
+```tsx
+<ReactPlayer
+  // ... andere Props
+  onProgress={({ played, playedSeconds, loaded, loadedSeconds }) => {
+    // Progress Handling
+  }}
+  onDuration={(duration) => {
+    // Duration Handling
+  }}
+  onBuffer={() => {
+    // Buffer Handling
+  }}
+  onSeek={(seconds) => {
+    // Seek Handling
+  }}
+/>
+```
+
+Player Methoden
+- playerRef.current?.seekTo(seconds)
+- playerRef.current?.getCurrentTime()
+- playerRef.current?.getDuration()
+- playerRef.current?.getSecondsLoaded()
+
+Accessibility
+- Aria Labels für Controls
+- Keyboard Navigation
+- Untertitel Support
+- Transkript Integration
+- Screen Reader Support
