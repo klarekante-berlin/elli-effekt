@@ -6,7 +6,10 @@ import VideoScene from './components/VideoScene';
 import ChatScene from './components/ChatScene';
 import BackgroundTexture from './components/BackgroundTexture';
 import Section from './components/Section';
+import { useVideoStore } from './stores/videoStore';
 import './styles/global.css';
+import videoSource1 from './assets/videos/WhatIf_Screen_002_Video.mp4';
+import videoSource2 from './assets/videos/WhatIf_Screen_004_Video.mp4';
 
 const SCROLL_SETTINGS = {
   duration: 1.5,
@@ -14,8 +17,8 @@ const SCROLL_SETTINGS = {
 };
 
 const App: React.FC = () => {
-  const [isVideoReady, setIsVideoReady] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
+  const { setReadyToPlayFromAudio } = useVideoStore();
   
   const lenis = useLenis(({ scroll, velocity }) => {
     // Verhindere mehrfaches Auslösen während des programmatischen Scrollens
@@ -64,7 +67,7 @@ const App: React.FC = () => {
   };
 
   const handleAudioComplete = () => {
-    setIsVideoReady(true);
+    setReadyToPlayFromAudio(true);
     setIsScrolling(true);
     lenis?.scrollTo('#video-scene', SCROLL_SETTINGS);
     setTimeout(() => {
@@ -75,6 +78,14 @@ const App: React.FC = () => {
   const handleVideoComplete = () => {
     setIsScrolling(true);
     lenis?.scrollTo('#chat-scene', SCROLL_SETTINGS);
+    setTimeout(() => {
+      setIsScrolling(false);
+    }, SCROLL_SETTINGS.duration * 1000);
+  };
+
+  const handleChatComplete = () => {
+    setIsScrolling(true);
+    lenis?.scrollTo('#final-video-scene', SCROLL_SETTINGS);
     setTimeout(() => {
       setIsScrolling(false);
     }, SCROLL_SETTINGS.duration * 1000);
@@ -101,11 +112,33 @@ const App: React.FC = () => {
         </Section>
 
         <Section height="100vh" id="video-scene">
-          <VideoScene isReadyToPlay={isVideoReady} onComplete={handleVideoComplete} />
+          <VideoScene 
+            id="video-scene"
+            videoSource={videoSource1}
+            isReadyToPlay={true}
+            onComplete={handleVideoComplete}
+            showControls={true}
+            loop={false}
+            showFrame={true}
+            startMuted={false}
+          />
         </Section>
 
         <Section height="100vh" id="chat-scene">
-          <ChatScene />
+          <ChatScene onComplete={handleChatComplete} />
+        </Section>
+
+        <Section height="100vh" id="final-video-scene">
+          <VideoScene 
+            id="final-video-scene"
+            videoSource={videoSource2}
+            isReadyToPlay={false}
+            onComplete={handleVideoComplete}
+            showControls={true}
+            loop={false}
+            showFrame={true}
+            startMuted={false}
+          />
         </Section>
       </div>
     </ReactLenis>

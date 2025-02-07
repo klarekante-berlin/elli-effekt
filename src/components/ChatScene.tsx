@@ -32,7 +32,11 @@ const comments: Comment[] = [
   { text: 'Zum kotzen!!', name: 'EcoRage', timestamp: '14:29', isRight: false }
 ];
 
-const ChatScene: React.FC = () => {
+interface ChatSceneProps {
+  onComplete?: () => void;
+}
+
+const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const commentsRef = useRef<HTMLDivElement>(null);
   const replayButtonRef = useRef<HTMLButtonElement>(null);
@@ -246,6 +250,9 @@ const ChatScene: React.FC = () => {
           } else {
             clearInterval(interval);
             showReplayButton();
+            if (onComplete) {
+              onComplete();
+            }
           }
         }, 2000);
       }
@@ -299,6 +306,9 @@ const ChatScene: React.FC = () => {
       } else {
         clearInterval(interval);
         showReplayButton();
+        if (onComplete) {
+          onComplete();
+        }
       }
     }, 1800);
 
