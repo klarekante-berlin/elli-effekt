@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import '../styles/ChatScene.css';
@@ -41,51 +41,150 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
   const commentsRef = useRef<HTMLDivElement>(null);
   const replayButtonRef = useRef<HTMLButtonElement>(null);
   const currentIndexRef = useRef(0);
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const visibleMessagesCount = 5;
   
   // Audio Refs
   const audioRef1 = useRef<HTMLAudioElement | null>(null);
   const audioRef2 = useRef<HTMLAudioElement | null>(null);
 
+  // Audio Setup
   useEffect(() => {
-    // Audio Setup
     audioRef1.current = new Audio(messageSound1);
     audioRef2.current = new Audio(messageSound2);
     
-    // Setze Lautstärke
     if (audioRef1.current) audioRef1.current.volume = 0.4;
     if (audioRef2.current) audioRef2.current.volume = 0.4;
 
-    // Verhindere automatisches Abspielen
     if (audioRef1.current) audioRef1.current.preload = 'auto';
     if (audioRef2.current) audioRef2.current.preload = 'auto';
+
+    return () => {
+      if (audioRef1.current) audioRef1.current = null;
+      if (audioRef2.current) audioRef2.current = null;
+    };
   }, []);
 
-  const playMessageSound = (index: number) => {
-    const isEven = index % 2 === 0;
-    const audio = isEven ? audioRef1.current : audioRef2.current;
+  // Initial Setup - Hide all messages
+  useEffect(() => {
+    if (!commentsRef.current) return;
     
-    if (audio) {
-      audio.currentTime = 0; // Reset Audio
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => console.log('Audio playback failed:', error));
+    const messageElements = Array.from(commentsRef.current.children);
+    messageElements.forEach((element) => {
+      gsap.set(element, {
+        opacity: 0,
+        y: window.innerHeight,
+        scale: 0.95,
+        filter: 'blur(0px)',
+        z: 0
+      });
+    });
+  }, []);
+
+  // ScrollTrigger Setup
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const trigger = ScrollTrigger.create({
+      trigger: containerRef.current,
+      start: 'top center',
+      end: 'bottom center',
+      onEnter: () => {
+        setIsPlaying(true);
+      },
+      onLeave: () => {
+        setIsPlaying(false);
+      },
+      onEnterBack: () => {
+        setIsPlaying(true);
+      },
+      onLeaveBack: () => {
+        setIsPlaying(false);
       }
+    });
+
+    return () => {
+      trigger.kill();
+      clearMessageInterval();
+    };
+  }, []);
+
+  // Handle animation state changes
+  useEffect(() => {
+    if (isPlaying) {
+      if (currentIndexRef.current === 0) {
+        startMessageSequence();
+      } else {
+        resumeMessageSequence();
+      }
+    } else {
+      pauseMessageSequence();
+    }
+  }, [isPlaying]);
+
+  const clearMessageInterval = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  const startMessageSequence = () => {
+    animateMessages(currentIndexRef.current);
+    
+    clearMessageInterval();
+    
+    intervalRef.current = setInterval(() => {
+      if (currentIndexRef.current < comments.length - 1) {
+        currentIndexRef.current++;
+        animateMessages(currentIndexRef.current);
+      } else {
+        clearMessageInterval();
+        showReplayButton();
+        if (onComplete) onComplete();
+      }
+    }, 2000);
+  };
+
+  const pauseMessageSequence = () => {
+    clearMessageInterval();
+    if (timelineRef.current) {
+      timelineRef.current.pause();
+    }
+  };
+
+  const resumeMessageSequence = () => {
+    if (timelineRef.current) {
+      timelineRef.current.play();
+      startMessageSequence();
     }
   };
 
   const animateMessages = (currentIndex: number) => {
     if (!containerRef.current || !commentsRef.current) return;
 
-    // Play sound for new message
     playMessageSound(currentIndex);
 
     const messageElements = Array.from(commentsRef.current.children);
     const messageSpacing = 30;
     const topPadding = 40;
     
-    const tl = gsap.timeline();
+    if (timelineRef.current) {
+      timelineRef.current.kill();
+    }
     
+    const tl = gsap.timeline({
+      paused: !isPlaying,
+      defaults: {
+        ease: 'power2.out',
+        duration: 0.4
+      }
+    });
+    
+    timelineRef.current = tl;
+
     // Berechne Start- und Endindex für sichtbare Nachrichten
     const startIndex = Math.max(0, currentIndex - visibleMessagesCount + 1);
     const endIndex = currentIndex;
@@ -109,7 +208,7 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
     // Positioniere sichtbare Nachrichten
     messageElements.forEach((element, index) => {
       if (index >= startIndex && index <= endIndex) {
-        const elementHeight = (element as HTMLElement).offsetHeight;
+        const elementHeight = (element as HTMLElement).offsetHeight || 80;
         
         if (index === currentIndex) {
           // Neue Nachricht einblenden
@@ -158,17 +257,25 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
           duration: 0.4,
           ease: 'power2.inOut'
         }, 0);
-      } else {
-        // Zukünftige Nachrichten versteckt halten
-        gsap.set(element, {
-          y: window.innerHeight,
-          opacity: 0,
-          scale: 0.95,
-          filter: 'blur(0px)',
-          z: 0
-        });
       }
     });
+
+    if (!isPlaying) {
+      tl.pause();
+    }
+  };
+
+  const playMessageSound = (index: number) => {
+    const isEven = index % 2 === 0;
+    const audio = isEven ? audioRef1.current : audioRef2.current;
+    
+    if (audio) {
+      audio.currentTime = 0; // Reset Audio
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => console.log('Audio playback failed:', error));
+      }
+    }
   };
 
   const showReplayButton = () => {
@@ -191,10 +298,6 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
   };
 
   const handleReplay = () => {
-    // Reset current index
-    currentIndexRef.current = 0;
-    
-    // Hide replay button
     if (replayButtonRef.current) {
       gsap.to(replayButtonRef.current, {
         opacity: 0,
@@ -205,7 +308,6 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
       });
     }
     
-    // Reset all messages
     if (commentsRef.current) {
       const messageElements = Array.from(commentsRef.current.children);
       messageElements.forEach((element) => {
@@ -219,105 +321,16 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
       });
     }
     
-    // Start animation sequence again
-    setTimeout(() => {
-      if (commentsRef.current) {
-        const firstMessage = commentsRef.current.children[0];
-        gsap.fromTo(firstMessage,
-          { 
-            y: window.innerHeight,
-            opacity: 0,
-            scale: 0.95,
-            filter: 'blur(0px)',
-            z: 0
-          },
-          { 
-            y: 40,
-            opacity: 1,
-            scale: 1,
-            filter: 'blur(0px)',
-            z: 0,
-            duration: 0.5,
-            ease: 'power2.out'
-          }
-        );
-        
-        // Restart interval
-        const interval = setInterval(() => {
-          if (currentIndexRef.current < comments.length - 1) {
-            currentIndexRef.current++;
-            animateMessages(currentIndexRef.current);
-          } else {
-            clearInterval(interval);
-            showReplayButton();
-            if (onComplete) {
-              onComplete();
-            }
-          }
-        }, 2000);
-      }
-    }, 500);
+    currentIndexRef.current = 0;
+    
+    if (isPlaying) {
+      startMessageSequence();
+    }
   };
 
-  useEffect(() => {
-    if (!commentsRef.current) return;
-    
-    const messageElements = Array.from(commentsRef.current.children);
-    
-    // Initial Setup
-    messageElements.forEach((element, index) => {
-      if (index === 0) {
-        // Erste Animation mit Sound
-        gsap.fromTo(element,
-          { 
-            y: window.innerHeight,
-            opacity: 0,
-            scale: 0.95,
-            filter: 'blur(0px)',
-            z: 0
-          },
-          { 
-            y: 40,
-            opacity: 1,
-            scale: 1,
-            filter: 'blur(0px)',
-            z: 0,
-            duration: 0.4,
-            ease: 'power2.out',
-            onStart: () => playMessageSound(0)
-          }
-        );
-      } else {
-        gsap.set(element, {
-          opacity: 0,
-          y: window.innerHeight,
-          scale: 0.95,
-          filter: 'blur(0px)',
-          z: 0
-        });
-      }
-    });
-
-    // Animation Interval
-    const interval = setInterval(() => {
-      if (currentIndexRef.current < comments.length - 1) {
-        currentIndexRef.current++;
-        animateMessages(currentIndexRef.current);
-      } else {
-        clearInterval(interval);
-        showReplayButton();
-        if (onComplete) {
-          onComplete();
-        }
-      }
-    }, 1800);
-
-    return () => clearInterval(interval);
-  }, []);
-
   return (
-    <div id="chat-scene" className="chat-scene" ref={containerRef}>
-      <div className="comments-container" ref={commentsRef}>
+    <div ref={containerRef} className="chat-scene">
+      <div ref={commentsRef} className="comments-container">
         {comments.map((comment, index) => (
           <div key={index} className={`comment ${comment.isRight ? 'right' : 'left'}`}>
             <div className="avatar-container">
@@ -328,7 +341,7 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
                 <span className="name">{comment.name}</span>
                 <span className="timestamp">{comment.timestamp}</span>
               </div>
-              <p>{comment.text}</p>
+              <p className="message-text">{comment.text}</p>
             </div>
           </div>
         ))}
@@ -338,6 +351,7 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
         className="replay-button"
         aria-label="Konversation wiederholen"
         onClick={handleReplay}
+        style={{ opacity: 0 }}
       >
         <svg 
           viewBox="0 0 24 24" 
