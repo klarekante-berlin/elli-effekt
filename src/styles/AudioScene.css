@@ -96,6 +96,42 @@
   transform-style: preserve-3d;
 }
 
+.play-button {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: var(--color-text);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+  z-index: 100;
+  -webkit-tap-highlight-color: transparent; /* Entfernt den Tap-Highlight auf iOS */
+}
+
+.play-button:hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+}
+
+.play-button:active {
+  transform: translateX(-50%) translateY(0);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Touch-Geräte Optimierungen */
+@media (hover: none) {
+  .play-button:hover {
+    transform: translateX(-50%);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+}
+
 @media (max-width: 768px) {
   .text-container {
     padding: 1rem;

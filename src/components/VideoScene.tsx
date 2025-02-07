@@ -33,6 +33,44 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
   const [userPaused, setUserPaused] = useState(false);
   const [hasStartedFromAudio, setHasStartedFromAudio] = useState(false);
   const wasPlayingBeforeLeave = useRef(false);
+  const touchStartY = useRef<number | null>(null);
+  const lastTouchTime = useRef<number>(0);
+
+  // Touch-Event-Handler
+  useEffect(() => {
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY.current = e.touches[0].clientY;
+      lastTouchTime.current = Date.now();
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (touchStartY.current === null) return;
+
+      const touchEndY = e.changedTouches[0].clientY;
+      const touchDuration = Date.now() - lastTouchTime.current;
+      const touchDistance = Math.abs(touchEndY - touchStartY.current);
+
+      // Schnelle, kurze Berührungen als Tap behandeln
+      if (touchDuration < 250 && touchDistance < 10) {
+        handlePlayPause();
+      }
+
+      touchStartY.current = null;
+    };
+
+    const element = containerRef.current;
+    if (element) {
+      element.addEventListener('touchstart', handleTouchStart, { passive: true });
+      element.addEventListener('touchend', handleTouchEnd, { passive: true });
+    }
+
+    return () => {
+      if (element) {
+        element.removeEventListener('touchstart', handleTouchStart);
+        element.removeEventListener('touchend', handleTouchEnd);
+      }
+    };
+  }, []);
 
   // Effekt für isReadyToPlay Änderungen
   useEffect(() => {
@@ -159,7 +197,9 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
             config={{
               file: {
                 attributes: {
-                  crossOrigin: "anonymous"
+                  crossOrigin: "anonymous",
+                  playsInline: "true",
+                  webkitPlaysinline: "true"
                 }
               }
             }}
@@ -172,13 +212,25 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
           className="video-frame"
         />
         <div className="video-controls">
-          <button onClick={handlePlayPause} className="control-button">
+          <button 
+            onClick={handlePlayPause} 
+            className="control-button"
+            aria-label={isVideoPlaying ? 'Pause' : 'Play'}
+          >
             {isVideoPlaying ? <Pause size={24} /> : <Play size={24} />}
           </button>
-          <button onClick={handleVolumeToggle} className="control-button">
+          <button 
+            onClick={handleVolumeToggle} 
+            className="control-button"
+            aria-label={isMuted ? 'Ton ein' : 'Ton aus'}
+          >
             {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
           </button>
-          <button onClick={handleFullscreenToggle} className="control-button">
+          <button 
+            onClick={handleFullscreenToggle} 
+            className="control-button"
+            aria-label={isFullscreen ? 'Vollbild beenden' : 'Vollbild'}
+          >
             {isFullscreen ? <Minimize size={24} /> : <Maximize size={24} />}
           </button>
         </div>

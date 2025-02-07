@@ -18,6 +18,7 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
   const splitRef = useRef<SplitType | null>(null);
   const [isAudioLoaded, setIsAudioLoaded] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [showPlayButton, setShowPlayButton] = useState(false);
 
   // Audio laden und vorbereiten
   useEffect(() => {
@@ -26,28 +27,65 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
 
     const handleCanPlay = () => {
       setIsAudioLoaded(true);
+      // Auf iOS initial Play-Button anzeigen
+      if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+        setShowPlayButton(true);
+      }
     };
 
     audio.addEventListener('canplay', handleCanPlay);
     return () => audio.removeEventListener('canplay', handleCanPlay);
   }, []);
 
-  // Benutzerinteraktion erkennen
+  // Erweiterte Benutzerinteraktion erkennen
   useEffect(() => {
     const handleInteraction = () => {
       setHasInteracted(true);
+      setShowPlayButton(false);
+    };
+
+    // Touch-Events für mobile Geräte
+    const handleTouchStart = (e: TouchEvent) => {
+      if (audioRef.current && !hasInteracted) {
+        handleInteraction();
+        // Audio vorbereiten für iOS
+        audioRef.current.load();
+        audioRef.current.play().catch(() => {
+          setShowPlayButton(true);
+        });
+      }
     };
 
     window.addEventListener('click', handleInteraction);
+    window.addEventListener('touchstart', handleTouchStart);
     window.addEventListener('scroll', handleInteraction);
     window.addEventListener('keydown', handleInteraction);
 
     return () => {
       window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('scroll', handleInteraction);
       window.removeEventListener('keydown', handleInteraction);
     };
-  }, []);
+  }, [hasInteracted]);
+
+  // Manueller Start für iOS
+  const handleManualPlay = () => {
+    if (audioRef.current) {
+      audioRef.current.play()
+        .then(() => {
+          setShowPlayButton(false);
+          setHasInteracted(true);
+          if (timelineRef.current) {
+            timelineRef.current.play();
+          }
+        })
+        .catch(error => {
+          console.error('Playback failed:', error);
+          setShowPlayButton(true);
+        });
+    }
+  };
 
   // Animation und Audio Setup
   useEffect(() => {
@@ -253,7 +291,17 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
         ref={audioRef} 
         src="/audio/elli_scene_01.mp3" 
         preload="auto"
+        playsInline // Wichtig für iOS
       />
+      {showPlayButton && (
+        <button 
+          className="play-button"
+          onClick={handleManualPlay}
+          aria-label="Audio abspielen"
+        >
+          Audio abspielen
+        </button>
+      )}
     </div>
   );
 };
