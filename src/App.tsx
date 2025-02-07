@@ -4,6 +4,7 @@ import WelcomePage from './components/WelcomePage';
 import AudioScene from './components/AudioScene';
 import VideoScene from './components/VideoScene';
 import ChatScene from './components/ChatScene';
+import AvocadoScene from './components/AvocadoScene';
 import BackgroundTexture from './components/BackgroundTexture';
 import Section from './components/Section';
 import { useVideoStore } from './stores/videoStore';
@@ -77,7 +78,7 @@ const App: React.FC = () => {
 
   const handleVideoComplete = () => {
     setIsScrolling(true);
-    lenis?.scrollTo('#chat-scene', SCROLL_SETTINGS);
+    lenis?.scrollTo('#avocado-scene', SCROLL_SETTINGS);
     setTimeout(() => {
       setIsScrolling(false);
     }, SCROLL_SETTINGS.duration * 1000);
@@ -86,6 +87,14 @@ const App: React.FC = () => {
   const handleChatComplete = () => {
     setIsScrolling(true);
     lenis?.scrollTo('#final-video-scene', SCROLL_SETTINGS);
+    setTimeout(() => {
+      setIsScrolling(false);
+    }, SCROLL_SETTINGS.duration * 1000);
+  };
+
+  const handleFinalVideoComplete = () => {
+    setIsScrolling(true);
+    lenis?.scrollTo('#avocado-scene', SCROLL_SETTINGS);
     setTimeout(() => {
       setIsScrolling(false);
     }, SCROLL_SETTINGS.duration * 1000);
@@ -133,11 +142,17 @@ const App: React.FC = () => {
             id="final-video-scene"
             videoSource={videoSource2}
             isReadyToPlay={false}
-            onComplete={handleVideoComplete}
+            onComplete={handleFinalVideoComplete}
             showControls={true}
             loop={false}
             showFrame={true}
             startMuted={false}
+          />
+        </Section>
+
+        <Section height="100vh" id="avocado-scene">
+          <AvocadoScene 
+            id="avocado-scene"
           />
         </Section>
       </div>

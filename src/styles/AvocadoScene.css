@@ -1,0 +1,64 @@
+.avocado-scene {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  background-color: var(--background-color);
+  gap: 2rem;
+}
+
+.avocado-text {
+  font-family: var(--font-amatic);
+  font-weight: 700;
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  line-height: 1.2;
+  text-align: center;
+  color: var(--color-text);
+  max-width: 1200px;
+  margin: 0 auto;
+  letter-spacing: 0.02em;
+}
+
+.avocado-text .char {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+  transform-origin: center;
+  white-space: pre;
+}
+
+.avocado-svg {
+  width: clamp(200px, 40vw, 400px);
+  height: auto;
+  opacity: 0;
+  transform: translateY(30px);
+  will-change: transform, opacity, filter;
+}
+
+.avocado-text .highlight {
+  color: #FFD700;
+  font-weight: 700;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .avocado-text {
+    font-size: clamp(2rem, 4vw, 3rem);
+    padding: 1rem;
+  }
+  
+  .avocado-svg {
+    width: clamp(150px, 50vw, 300px);
+  }
+}
+
+/* Ensure proper spacing between words */
+.avocado-text .word:first-child {
+  margin-left: 0;
+}
+
+.avocado-text .word:last-child {
+  margin-right: 0;
+} 
