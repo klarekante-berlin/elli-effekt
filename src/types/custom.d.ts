@@ -3,6 +3,11 @@ declare module '*.mp4' {
   export default src;
 }
 
+declare module '*.wav' {
+  const src: string;
+  export default src;
+}
+
 declare module 'react-player' {
   import { ComponentType, ForwardRefExoticComponent, RefAttributes } from 'react';
 
