@@ -27,77 +27,76 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
   const playerRef = useRef<ReactPlayerInstance>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
-  const [isMuted, setIsMuted] = useState(true); // Standard: stumm
+  const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isInView, setIsInView] = useState(false);
   const [userPaused, setUserPaused] = useState(false);
+  const [hasStartedFromAudio, setHasStartedFromAudio] = useState(false);
+  const wasPlayingBeforeLeave = useRef(false);
 
-  // Debug-Effekt für Zustandsänderungen
+  // Effekt für isReadyToPlay Änderungen
   useEffect(() => {
-    console.log('State Update:', {
-      isVideoPlaying,
-      isVideoReady,
-      isInView,
-      userPaused,
-      isReadyToPlay
-    });
-  }, [isVideoPlaying, isVideoReady, isInView, userPaused, isReadyToPlay]);
+    if (isReadyToPlay && !hasStartedFromAudio) {
+      console.log('Starting from audio scene');
+      setIsVideoPlaying(true);
+      setUserPaused(false);
+      setIsInView(true);
+      setIsMuted(false);
+      setHasStartedFromAudio(true);
+    }
+  }, [isReadyToPlay, hasStartedFromAudio]);
+
+  // Effekt für Sichtbarkeitsänderungen
+  useEffect(() => {
+    if (isInView) {
+      if (wasPlayingBeforeLeave.current || (isVideoReady && !userPaused)) {
+        console.log('Scene in view, resuming video');
+        setIsVideoPlaying(true);
+        wasPlayingBeforeLeave.current = false;
+      }
+    } else {
+      if (isVideoPlaying) {
+        console.log('Scene out of view, pausing video');
+        wasPlayingBeforeLeave.current = true;
+        setIsVideoPlaying(false);
+      }
+    }
+  }, [isInView, isVideoReady, userPaused, isVideoPlaying]);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     const trigger = ScrollTrigger.create({
       trigger: containerRef.current,
-      start: "top center",
-      end: "bottom center",
-      markers: true, // Debug-Marker
+      start: "top 80%",
+      end: "bottom 20%",
       onEnter: () => {
         console.log('Video Scene: Enter');
         setIsInView(true);
-        if (!userPaused && isVideoReady) {
-          console.log('Attempting to play video on enter');
-          setIsVideoPlaying(true);
-        }
       },
       onLeave: () => {
         console.log('Video Scene: Leave');
         setIsInView(false);
-        setIsVideoPlaying(false);
       },
       onEnterBack: () => {
         console.log('Video Scene: Enter Back');
         setIsInView(true);
-        if (!userPaused && isVideoReady) {
-          console.log('Attempting to play video on enter back');
-          setIsVideoPlaying(true);
-        }
       },
       onLeaveBack: () => {
         console.log('Video Scene: Leave Back');
         setIsInView(false);
-        setIsVideoPlaying(false);
       }
     });
 
     return () => {
       trigger.kill();
     };
-  }, [isVideoReady, userPaused]);
-
-  // Vereinfachter Effekt für isReadyToPlay
-  useEffect(() => {
-    if (isReadyToPlay && isInView && !userPaused) {
-      console.log('Ready to play effect triggered');
-      setIsVideoPlaying(true);
-    }
-  }, [isReadyToPlay, isInView]);
+  }, []);
 
   const handleVideoReady = () => {
     console.log('Video ready');
     setIsVideoReady(true);
-    // Automatisch abspielen, wenn die Szene bereit ist
     if (isInView && !userPaused) {
-      console.log('Auto-playing after ready');
       setIsVideoPlaying(true);
     }
   };
@@ -112,6 +111,10 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
     const newPlayingState = !isVideoPlaying;
     setUserPaused(!newPlayingState);
     setIsVideoPlaying(newPlayingState);
+    
+    if (newPlayingState) {
+      wasPlayingBeforeLeave.current = false;
+    }
   };
 
   const handleVolumeToggle = () => {
