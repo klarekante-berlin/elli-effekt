@@ -7,50 +7,153 @@
   align-items: center;
   padding: 2rem;
   background-color: var(--background-color);
-  gap: 2rem;
+  gap: 4rem;
 }
 
 .avocado-text {
   font-family: var(--font-amatic);
   font-weight: 700;
-  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1.2;
   text-align: center;
-  color: var(--color-text);
-  max-width: 1200px;
+  color: white;
+  max-width: 1000px;
   margin: 0 auto;
   letter-spacing: 0.02em;
 }
 
+.avocado-text .word {
+  display: inline-block;
+  margin: 0 0.2em;
+  position: relative;
+  opacity: 0;
+  transform-origin: center;
+  will-change: transform, opacity, filter;
+}
+
 .avocado-text .char {
   display: inline-block;
-  will-change: transform, opacity, filter;
   transform-origin: center;
   white-space: pre;
+  position: relative;
+}
+
+.avocado-container {
+  position: relative;
+  width: clamp(180px, 35vw, 350px);
+  height: auto;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.avocado-parts {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.avocado-flesh {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.wave-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 30%;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.wave-container svg {
+  width: 100%;
+  height: 100%;
+}
+
+.wave {
+  transform-origin: center;
+  will-change: transform;
+}
+
+.wave1 {
+  opacity: 1;
+}
+
+.wave2 {
+  opacity: 0.7;
 }
 
 .avocado-svg {
-  width: clamp(200px, 40vw, 400px);
-  height: auto;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  transform: translateY(30px);
-  will-change: transform, opacity, filter;
+  will-change: transform;
+}
+
+.avocado-outline {
+  z-index: 2;
+  opacity: 1;
+}
+
+.avocado-outline path {
+  fill: none;
+  stroke: #4A6741;
+  stroke-width: 1;
+}
+
+/* Das Blatt grün färben */
+.avocado-outline path:last-child {
+  fill: #4A6741;
+  stroke: none;
+}
+
+.avocado-filled {
+  z-index: 1;
+  fill: #4A6741;
 }
 
 .avocado-text .highlight {
   color: #FFD700;
   font-weight: 700;
+  text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+}
+
+@keyframes wave {
+  0%, 100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.02);
+  }
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
   .avocado-text {
-    font-size: clamp(2rem, 4vw, 3rem);
+    font-size: clamp(1.8rem, 3.5vw, 2.5rem);
     padding: 1rem;
   }
   
-  .avocado-svg {
-    width: clamp(150px, 50vw, 300px);
+  .avocado-container {
+    width: clamp(140px, 45vw, 250px);
+  }
+  
+  .avocado-scene {
+    gap: 3rem;
+  }
+  
+  .avocado-text .word {
+    margin: 0 0.15em;
   }
 }
 

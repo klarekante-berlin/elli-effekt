@@ -65,4 +65,15 @@ declare module 'react-player' {
 declare module 'react-player/lazy' {
   import ReactPlayer from 'react-player';
   export default ReactPlayer;
+}
+
+declare module '*.svg' {
+  import * as React from 'react';
+
+  export const ReactComponent: React.FunctionComponent<React.SVGProps<
+    SVGSVGElement
+  > & { title?: string }>;
+
+  const src: string;
+  export default src;
 } 
