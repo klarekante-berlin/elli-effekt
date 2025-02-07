@@ -52,8 +52,26 @@ const VideoScene: React.FC<VideoSceneProps> = ({
     playVideo,
     pauseVideo,
     setUserPaused,
-    setReadyToPlayFromAudio
+    setReadyToPlayFromAudio,
+    initializeVideo,
+    isVideoInitialized
   } = useVideoStore();
+
+  // Initialisierung
+  useEffect(() => {
+    console.log(`Video ${id}: Mount`);
+    if (!isVideoInitialized(id)) {
+      console.log(`Video ${id}: Initialisiere`);
+      initializeVideo(id);
+      // Setze initial auf pausiert
+      setUserPaused(id, true);
+    }
+
+    return () => {
+      console.log(`Video ${id}: Unmount`);
+      pauseVideo(id);
+    };
+  }, [id]);
 
   // Touch-Event-Handler
   useEffect(() => {
@@ -88,56 +106,60 @@ const VideoScene: React.FC<VideoSceneProps> = ({
 
   // ScrollTrigger für Sichtbarkeit
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || !isVideoReady) return;
 
+    console.log(`Video ${id}: ScrollTrigger Setup`);
+    
     const trigger = ScrollTrigger.create({
       trigger: containerRef.current,
       start: "top 80%",
       end: "bottom 20%",
       onEnter: () => {
-        console.log(`Video ${id}: Enter`);
-        if (!isUserPaused(id) && isVideoReady) {
-          playVideo(id);
-        }
+        console.log(`Video ${id}: Enter - Start Playing`);
+        setUserPaused(id, false); // Erlaube Autoplay beim Scrollen
+        playVideo(id);
       },
       onLeave: () => {
-        console.log(`Video ${id}: Leave`);
+        console.log(`Video ${id}: Leave - Pause`);
         pauseVideo(id);
       },
       onEnterBack: () => {
-        console.log(`Video ${id}: Enter Back`);
-        if (!isUserPaused(id) && isVideoReady) {
-          playVideo(id);
-        }
+        console.log(`Video ${id}: Enter Back - Start Playing`);
+        setUserPaused(id, false); // Erlaube Autoplay beim Scrollen
+        playVideo(id);
       },
       onLeaveBack: () => {
-        console.log(`Video ${id}: Leave Back`);
+        console.log(`Video ${id}: Leave Back - Pause`);
         pauseVideo(id);
+      },
+      onUpdate: (self) => {
+        // Prüfe ob die Szene aktuell sichtbar ist
+        if (self.isActive && !isVideoPlaying(id) && !isUserPaused(id)) {
+          console.log(`Video ${id}: Scene visible - Start Playing`);
+          playVideo(id);
+        }
       }
     });
 
     return () => {
+      console.log(`Video ${id}: ScrollTrigger Cleanup`);
       trigger.kill();
     };
   }, [id, isVideoReady]);
 
-  // Effekt für isReadyToPlay (nach Audio)
+  // Effekt für isReadyToPlay (nach Audio) - nur für spezielle Audio-getriggerte Szenen
   useEffect(() => {
     if (isReadyToPlay) {
+      console.log(`Video ${id}: Ready to play from audio`);
       setReadyToPlayFromAudio(true);
-      setUserPaused(id, false);
-      playVideo(id);
+      setUserPaused(id, false); // Erlaube Autoplay nach Audio
     }
   }, [isReadyToPlay, id]);
 
   const handleVideoReady = () => {
-    console.log(`Video ${id} ready`);
+    console.log(`Video ${id}: Ready`);
     setIsVideoReady(true);
-    
-    if (isReadyToPlay) {
-      playVideo(id);
-      setUserPaused(id, false);
-    }
+    // NICHT automatisch abspielen wenn bereit
   };
 
   const handleVideoError = (error: unknown) => {
@@ -147,11 +169,13 @@ const VideoScene: React.FC<VideoSceneProps> = ({
 
   const handlePlayPause = () => {
     if (isVideoPlaying(id)) {
+      console.log(`Video ${id}: Manual Pause`);
       pauseVideo(id);
       setUserPaused(id, true);
     } else {
-      playVideo(id);
+      console.log(`Video ${id}: Manual Play`);
       setUserPaused(id, false);
+      playVideo(id);
     }
   };
 
@@ -184,7 +208,7 @@ const VideoScene: React.FC<VideoSceneProps> = ({
       <div className="frame-container">
         <div 
           ref={playerWrapperRef} 
-          className={`player-wrapper ${isVideoPlaying(id) ? 'playing' : ''}`}
+          className="player-wrapper"
         >
           <ReactPlayer
             ref={playerRef}
@@ -198,8 +222,8 @@ const VideoScene: React.FC<VideoSceneProps> = ({
             className="react-player"
             onReady={handleVideoReady}
             onError={handleVideoError}
-            onPlay={() => console.log(`Video ${id} actually started playing`)}
-            onPause={() => console.log(`Video ${id} actually paused`)}
+            onPlay={() => console.log(`Video ${id}: Actually started playing`)}
+            onPause={() => console.log(`Video ${id}: Actually paused`)}
             onEnded={handleVideoEnd}
             config={{
               file: {
