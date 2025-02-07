@@ -8,6 +8,7 @@
   position: relative;
   overflow: hidden;
   background-color: var(--background-dark);
+  perspective: 1000px;
 }
 
 .comments-container {
@@ -19,6 +20,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  transform-style: preserve-3d;
 }
 
 .comment {
@@ -28,10 +30,11 @@
   padding: 1rem 1.25rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  transform-origin: center;
-  will-change: transform, opacity;
+  transform-origin: center center;
+  will-change: transform, opacity, filter;
   position: absolute;
-  width: calc(100% - 4rem);
+  width: 100%;
+  max-width: 600px;
   left: 2rem;
   opacity: 0;
   pointer-events: none;
@@ -40,6 +43,18 @@
   align-items: flex-start;
   min-height: 60px;
   margin-bottom: 30px;
+  backface-visibility: hidden;
+}
+
+.comment:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.comment:nth-child(even) {
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
 
 .comment.left {
@@ -49,6 +64,14 @@
 .comment.right {
   margin-left: 20%;
   flex-direction: row-reverse;
+}
+
+.comment.left:nth-child(even) {
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
+}
+
+.comment.right:nth-child(even) {
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
 }
 
 .comment.visible {
@@ -110,7 +133,7 @@
 
 .replay-button {
   position: fixed;
-  bottom: 2rem;
+  bottom: 3rem;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(255, 255, 255, 0.1);
@@ -187,7 +210,7 @@
   }
 
   .replay-button {
-    bottom: 2rem;
+    bottom: 3rem;
     padding: 1rem 2rem;
     font-size: 1rem;
   }

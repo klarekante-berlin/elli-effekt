@@ -35,119 +35,272 @@ const comments: Comment[] = [
 const ChatScene: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const commentsRef = useRef<HTMLDivElement>(null);
+  const replayButtonRef = useRef<HTMLButtonElement>(null);
   const currentIndexRef = useRef(0);
   const visibleMessagesCount = 5;
+  
+  // Audio Refs
+  const audioRef1 = useRef<HTMLAudioElement | null>(null);
+  const audioRef2 = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Audio Setup
+    audioRef1.current = new Audio(messageSound1);
+    audioRef2.current = new Audio(messageSound2);
+    
+    // Setze Lautstärke
+    if (audioRef1.current) audioRef1.current.volume = 0.4;
+    if (audioRef2.current) audioRef2.current.volume = 0.4;
+
+    // Verhindere automatisches Abspielen
+    if (audioRef1.current) audioRef1.current.preload = 'auto';
+    if (audioRef2.current) audioRef2.current.preload = 'auto';
+  }, []);
+
+  const playMessageSound = (index: number) => {
+    const isEven = index % 2 === 0;
+    const audio = isEven ? audioRef1.current : audioRef2.current;
+    
+    if (audio) {
+      audio.currentTime = 0; // Reset Audio
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => console.log('Audio playback failed:', error));
+      }
+    }
+  };
 
   const animateMessages = (currentIndex: number) => {
     if (!containerRef.current || !commentsRef.current) return;
 
+    // Play sound for new message
+    playMessageSound(currentIndex);
+
     const messageElements = Array.from(commentsRef.current.children);
     const messageSpacing = 30;
     const topPadding = 40;
+    
+    const tl = gsap.timeline();
     
     // Berechne Start- und Endindex für sichtbare Nachrichten
     const startIndex = Math.max(0, currentIndex - visibleMessagesCount + 1);
     const endIndex = currentIndex;
     let currentY = topPadding;
 
-    // Fade out älteste Nachricht nach oben
+    // Fade out älteste Nachricht
     if (startIndex > 0) {
       const oldestMessage = messageElements[startIndex - 1];
-      gsap.to(oldestMessage, {
-        y: -100,
+      tl.to(oldestMessage, {
+        y: -60,
         opacity: 0,
-        scale: 0.9,
-        duration: 0.5,
+        scale: 0.95,
+        filter: 'blur(4px)',
+        z: -100,
+        transformOrigin: 'center center',
+        duration: 0.4,
         ease: 'power2.inOut'
-      });
+      }, 0);
     }
 
     // Positioniere sichtbare Nachrichten
-    for (let i = startIndex; i <= endIndex; i++) {
-      const element = messageElements[i];
-      if (element) {
+    messageElements.forEach((element, index) => {
+      if (index >= startIndex && index <= endIndex) {
         const elementHeight = (element as HTMLElement).offsetHeight;
         
-        // Wenn es die neue Nachricht ist, animiere sie von unten
-        if (i === currentIndex) {
-          gsap.fromTo(element,
+        if (index === currentIndex) {
+          // Neue Nachricht einblenden
+          tl.fromTo(element,
             { 
               y: window.innerHeight,
               opacity: 0,
-              scale: 0.9
+              scale: 0.95,
+              filter: 'blur(0px)',
+              z: 0,
+              transformOrigin: 'center center'
             },
             { 
               y: currentY,
               opacity: 1,
               scale: 1,
-              duration: 0.5,
+              filter: 'blur(0px)',
+              z: 0,
+              duration: 0.4,
               ease: 'power2.out'
-            }
+            },
+            0.1
           );
         } else {
-          // Andere Nachrichten nach oben schieben
-          gsap.to(element, {
+          // Existierende Nachrichten nach oben schieben
+          tl.to(element, {
             y: currentY,
-            duration: 0.5,
+            opacity: 1,
+            scale: 1,
+            filter: 'blur(0px)',
+            z: 0,
+            duration: 0.4,
             ease: 'power2.inOut'
-          });
+          }, 0);
         }
         
         currentY += elementHeight + messageSpacing;
-      }
-    }
-
-    // Verstecke alle anderen Nachrichten
-    messageElements.forEach((element, index) => {
-      if (index < startIndex || index > endIndex) {
-        gsap.set(element, { 
+      } else if (index < startIndex) {
+        // Ältere Nachrichten ausblenden
+        tl.to(element, {
+          y: -100,
           opacity: 0,
+          scale: 0.9,
+          filter: 'blur(8px)',
+          z: -200,
+          duration: 0.4,
+          ease: 'power2.inOut'
+        }, 0);
+      } else {
+        // Zukünftige Nachrichten versteckt halten
+        gsap.set(element, {
           y: window.innerHeight,
-          scale: 0.9
+          opacity: 0,
+          scale: 0.95,
+          filter: 'blur(0px)',
+          z: 0
         });
       }
     });
   };
 
-  useEffect(() => {
-    // Initial alle Nachrichten verstecken außer der ersten
-    if (!commentsRef.current) return;
+  const showReplayButton = () => {
+    if (replayButtonRef.current) {
+      gsap.fromTo(replayButtonRef.current,
+        {
+          opacity: 0,
+          y: 20,
+          scale: 0.9
+        },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.5,
+          ease: 'back.out(1.7)'
+        }
+      );
+    }
+  };
+
+  const handleReplay = () => {
+    // Reset current index
+    currentIndexRef.current = 0;
     
-    const messageElements = Array.from(commentsRef.current.children);
-    messageElements.forEach((element, index) => {
-      if (index === 0) {
-        gsap.fromTo(element,
+    // Hide replay button
+    if (replayButtonRef.current) {
+      gsap.to(replayButtonRef.current, {
+        opacity: 0,
+        y: 20,
+        scale: 0.9,
+        duration: 0.3,
+        ease: 'power2.in'
+      });
+    }
+    
+    // Reset all messages
+    if (commentsRef.current) {
+      const messageElements = Array.from(commentsRef.current.children);
+      messageElements.forEach((element) => {
+        gsap.set(element, {
+          opacity: 0,
+          y: window.innerHeight,
+          scale: 0.95,
+          filter: 'blur(0px)',
+          z: 0
+        });
+      });
+    }
+    
+    // Start animation sequence again
+    setTimeout(() => {
+      if (commentsRef.current) {
+        const firstMessage = commentsRef.current.children[0];
+        gsap.fromTo(firstMessage,
           { 
             y: window.innerHeight,
             opacity: 0,
-            scale: 0.9
+            scale: 0.95,
+            filter: 'blur(0px)',
+            z: 0
           },
           { 
             y: 40,
             opacity: 1,
             scale: 1,
+            filter: 'blur(0px)',
+            z: 0,
             duration: 0.5,
             ease: 'power2.out'
+          }
+        );
+        
+        // Restart interval
+        const interval = setInterval(() => {
+          if (currentIndexRef.current < comments.length - 1) {
+            currentIndexRef.current++;
+            animateMessages(currentIndexRef.current);
+          } else {
+            clearInterval(interval);
+            showReplayButton();
+          }
+        }, 2000);
+      }
+    }, 500);
+  };
+
+  useEffect(() => {
+    if (!commentsRef.current) return;
+    
+    const messageElements = Array.from(commentsRef.current.children);
+    
+    // Initial Setup
+    messageElements.forEach((element, index) => {
+      if (index === 0) {
+        // Erste Animation mit Sound
+        gsap.fromTo(element,
+          { 
+            y: window.innerHeight,
+            opacity: 0,
+            scale: 0.95,
+            filter: 'blur(0px)',
+            z: 0
+          },
+          { 
+            y: 40,
+            opacity: 1,
+            scale: 1,
+            filter: 'blur(0px)',
+            z: 0,
+            duration: 0.4,
+            ease: 'power2.out',
+            onStart: () => playMessageSound(0)
           }
         );
       } else {
         gsap.set(element, {
           opacity: 0,
           y: window.innerHeight,
-          scale: 0.9
+          scale: 0.95,
+          filter: 'blur(0px)',
+          z: 0
         });
       }
     });
 
-    // Starte Animation für weitere Nachrichten
+    // Animation Interval
     const interval = setInterval(() => {
       if (currentIndexRef.current < comments.length - 1) {
         currentIndexRef.current++;
         animateMessages(currentIndexRef.current);
       } else {
         clearInterval(interval);
+        showReplayButton();
       }
-    }, 2000);
+    }, 1800);
 
     return () => clearInterval(interval);
   }, []);
@@ -171,13 +324,23 @@ const ChatScene: React.FC = () => {
         ))}
       </div>
       <button 
+        ref={replayButtonRef}
         className="replay-button"
         aria-label="Konversation wiederholen"
+        onClick={handleReplay}
       >
-        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none">
-          <path d="M3 12a9 9 0 1 1 9 9 9 9 0 0 1-9-9z"/>
-          <path d="M3 12h9"/>
-          <path d="m9 8-4 4 4 4"/>
+        <svg 
+          viewBox="0 0 24 24" 
+          width="24" 
+          height="24" 
+          stroke="currentColor" 
+          strokeWidth="2" 
+          fill="none" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+        >
+          <polyline points="1 4 1 10 7 10"></polyline>
+          <path d="M3.51 15a9 9 0 1 0-2.13-9.36L1 10"></path>
         </svg>
         <span>Wiederholen</span>
       </button>
