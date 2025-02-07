@@ -3,6 +3,7 @@ import { ReactLenis, useLenis } from 'lenis/react';
 import WelcomePage from './components/WelcomePage';
 import AudioScene from './components/AudioScene';
 import VideoScene from './components/VideoScene';
+import ChatScene from './components/ChatScene';
 import BackgroundTexture from './components/BackgroundTexture';
 import Section from './components/Section';
 import './styles/global.css';
@@ -71,6 +72,14 @@ const App: React.FC = () => {
     }, SCROLL_SETTINGS.duration * 1000);
   };
 
+  const handleVideoComplete = () => {
+    setIsScrolling(true);
+    lenis?.scrollTo('#chat-scene', SCROLL_SETTINGS);
+    setTimeout(() => {
+      setIsScrolling(false);
+    }, SCROLL_SETTINGS.duration * 1000);
+  };
+
   return (
     <ReactLenis root options={{
       duration: 1.5,
@@ -92,7 +101,11 @@ const App: React.FC = () => {
         </Section>
 
         <Section height="100vh" id="video-scene">
-          <VideoScene isReadyToPlay={isVideoReady} />
+          <VideoScene isReadyToPlay={isVideoReady} onComplete={handleVideoComplete} />
+        </Section>
+
+        <Section height="100vh" id="chat-scene">
+          <ChatScene />
         </Section>
       </div>
     </ReactLenis>

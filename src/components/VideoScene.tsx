@@ -11,6 +11,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 interface VideoSceneProps {
   isReadyToPlay?: boolean;
+  onComplete?: () => void;
 }
 
 interface ReactPlayerInstance {
@@ -20,7 +21,7 @@ interface ReactPlayerInstance {
   getInternalPlayer: (key?: string) => any;
 }
 
-const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
+const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false, onComplete }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLImageElement>(null);
   const playerWrapperRef = useRef<HTMLDivElement>(null);
@@ -169,6 +170,12 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
     }
   };
 
+  const handleVideoEnd = () => {
+    if (onComplete) {
+      onComplete();
+    }
+  };
+
   return (
     <div 
       id="video-scene" 
@@ -184,7 +191,7 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
             ref={playerRef}
             url={videoSource}
             playing={isVideoPlaying}
-            loop={true}
+            loop={false}
             muted={isMuted}
             width="100%"
             height="100%"
@@ -194,12 +201,11 @@ const VideoScene: React.FC<VideoSceneProps> = ({ isReadyToPlay = false }) => {
             onError={handleVideoError}
             onPlay={() => console.log('Video actually started playing')}
             onPause={() => console.log('Video actually paused')}
+            onEnded={handleVideoEnd}
             config={{
               file: {
                 attributes: {
-                  crossOrigin: "anonymous",
-                  playsInline: "true",
-                  webkitPlaysinline: "true"
+                  crossOrigin: "anonymous"
                 }
               }
             }}
