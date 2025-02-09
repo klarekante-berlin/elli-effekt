@@ -415,3 +415,103 @@ const Scene: FC<SceneProps> = ({ id }) => {
 - Recovery strategies
 - User feedback
 - Logging and monitoring
+
+# 11. Smooth Scrolling mit Lenis
+@Lenis @React @TypeScript
+
+## Lenis Integration Best Practices
+1. Import und Setup
+```typescript
+import { ReactLenis, useLenis } from 'lenis/react'
+// oder
+import { ReactLenis, useLenis } from '@studio-freight/lenis'
+```
+
+2. Komponenten-Integration
+```typescript
+function App() {
+  const lenis = useLenis(({ scroll, velocity }: { scroll: number; velocity: number }) => {
+    // called every scroll
+  })
+
+  return (
+    <ReactLenis root>
+      { /* content */ }
+    </ReactLenis>
+  )
+}
+```
+
+3. GSAP Integration
+```typescript
+import gsap from 'gsap'
+import { ReactLenis } from 'lenis/react'
+import { useEffect, useRef } from 'react'
+
+function App() {
+  const lenisRef = useRef()
+  
+  useEffect(() => {
+    function update(time) {
+      lenisRef.current?.lenis?.raf(time * 1000)
+    }
+  
+    gsap.ticker.add(update)
+    return () => gsap.ticker.remove(update)
+  }, [])
+  
+  return (
+    <ReactLenis options={{ autoRaf: false }} ref={lenisRef}>
+      { /* content */ }
+    </ReactLenis>
+  )
+}
+```
+
+4. Lenis Optionen
+```typescript
+interface LenisOptions {
+  duration?: number;
+  easing?: (t: number) => number;
+  smoothWheel?: boolean;
+  wheelMultiplier?: number;
+  touchMultiplier?: number;
+  infinite?: boolean;
+  orientation?: 'vertical' | 'horizontal';
+  gestureOrientation?: 'vertical' | 'horizontal';
+  autoRaf?: boolean;
+  syncTouch?: boolean;
+}
+```
+
+## Performance Guidelines
+1. RAF-Loop Optimierung
+- Nutze `autoRaf: false` für eigene RAF-Loops
+- Cleanup mit `cancelAnimationFrame`
+- Vermeide mehrfache RAF-Loops
+
+2. Event Handling
+- Debounce Scroll Events
+- Throttle Animation Updates
+- Cleanup Event Listener
+
+3. Memory Management
+- Proper Cleanup in useEffect
+- Clear References
+- Destroy Lenis Instance
+
+## Integration mit Store
+1. Store Synchronisation
+- Lenis Status im Store
+- Scroll Position Tracking
+- Animation States
+
+2. Scene Management
+- Scene Transitions
+- Scroll Snapping
+- Animation Triggers
+
+3. Error Handling
+- Instance Checks
+- Fallback States
+- Recovery Strategies

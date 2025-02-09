@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { devtools, subscribeWithSelector } from 'zustand/middleware';
+import { devtools, persist, subscribeWithSelector } from 'zustand/middleware';
 import { useSceneStore } from './sceneStore';
 import { useBaseStore } from './baseStore';
 
@@ -24,6 +24,7 @@ interface VideoState {
 interface GlobalVideoState {
   activeVideoId: VideoId | null;
   videoStates: Record<VideoId, VideoState>;
+  isInitialized: boolean;
 }
 
 interface VideoActions {
@@ -43,6 +44,9 @@ interface VideoActions {
   // Audio
   setMuted: (videoId: VideoId, muted: boolean) => void;
   toggleMuted: (videoId: VideoId) => void;
+
+  // Initialisierung
+  initialize: () => void;
 }
 
 const initialMetadata: VideoMetadata = {
@@ -64,141 +68,157 @@ const initialState: GlobalVideoState = {
   activeVideoId: null,
   videoStates: {
     'video-scene': { ...initialVideoState }
-  }
+  },
+  isInitialized: false
 };
 
 export const useVideoStore = create<GlobalVideoState & VideoActions>()(
-  subscribeWithSelector(
-    devtools((set, get) => ({
-      ...initialState,
+  devtools(
+    persist(
+      subscribeWithSelector((set, get) => ({
+        ...initialState,
 
-      play: (videoId) => {
-        const { markSceneAsActive } = useSceneStore.getState();
+        play: (videoId) => {
+          const { markSceneAsActive } = useSceneStore.getState();
 
-        set((state) => ({
-          activeVideoId: videoId,
-          videoStates: {
-            ...state.videoStates,
-            [videoId]: {
-              ...state.videoStates[videoId],
-              isPlaying: true
-            }
-          }
-        }));
-
-        markSceneAsActive(videoId);
-      },
-
-      pause: (videoId) => {
-        set((state) => ({
-          videoStates: {
-            ...state.videoStates,
-            [videoId]: {
-              ...state.videoStates[videoId],
-              isPlaying: false
-            }
-          }
-        }));
-      },
-
-      togglePlay: (videoId) => {
-        const state = get();
-        const videoState = state.videoStates[videoId];
-        
-        if (videoState?.isPlaying) {
-          get().pause(videoId);
-        } else {
-          get().play(videoId);
-        }
-      },
-
-      markVideoAsReady: (videoId) => {
-        const { markSceneAsReady } = useSceneStore.getState();
-        
-        set((state) => ({
-          videoStates: {
-            ...state.videoStates,
-            [videoId]: {
-              ...state.videoStates[videoId],
-              isReady: true
-            }
-          }
-        }));
-        
-        markSceneAsReady(videoId);
-      },
-
-      markVideoAsComplete: (videoId) => {
-        const { markSceneAsComplete } = useSceneStore.getState();
-        
-        set((state) => ({
-          videoStates: {
-            ...state.videoStates,
-            [videoId]: {
-              ...state.videoStates[videoId],
-              isComplete: true,
-              isPlaying: false
-            }
-          }
-        }));
-        
-        markSceneAsComplete(videoId);
-      },
-
-      resetVideo: (videoId) => {
-        const { resetScene } = useSceneStore.getState();
-        
-        set((state) => ({
-          videoStates: {
-            ...state.videoStates,
-            [videoId]: {
-              ...initialVideoState
-            }
-          }
-        }));
-        
-        resetScene(videoId);
-      },
-
-      updateMetadata: (videoId, metadata) => {
-        set((state) => ({
-          videoStates: {
-            ...state.videoStates,
-            [videoId]: {
-              ...state.videoStates[videoId],
-              metadata: {
-                ...state.videoStates[videoId].metadata,
-                ...metadata
+          set((state) => ({
+            activeVideoId: videoId,
+            videoStates: {
+              ...state.videoStates,
+              [videoId]: {
+                ...state.videoStates[videoId],
+                isPlaying: true
               }
             }
-          }
-        }));
-      },
+          }));
 
-      setMuted: (videoId, muted) => {
-        set((state) => ({
-          videoStates: {
-            ...state.videoStates,
-            [videoId]: {
-              ...state.videoStates[videoId],
-              isMuted: muted
-            }
-          }
-        }));
-      },
+          markSceneAsActive(videoId);
+        },
 
-      toggleMuted: (videoId) => {
-        set((state) => ({
-          videoStates: {
-            ...state.videoStates,
-            [videoId]: {
-              ...state.videoStates[videoId],
-              isMuted: !state.videoStates[videoId].isMuted
+        pause: (videoId) => {
+          set((state) => ({
+            videoStates: {
+              ...state.videoStates,
+              [videoId]: {
+                ...state.videoStates[videoId],
+                isPlaying: false
+              }
             }
+          }));
+        },
+
+        togglePlay: (videoId) => {
+          const state = get();
+          const videoState = state.videoStates[videoId];
+          
+          if (videoState?.isPlaying) {
+            get().pause(videoId);
+          } else {
+            get().play(videoId);
           }
-        }));
+        },
+
+        markVideoAsReady: (videoId) => {
+          const { markSceneAsReady } = useSceneStore.getState();
+          
+          set((state) => ({
+            videoStates: {
+              ...state.videoStates,
+              [videoId]: {
+                ...state.videoStates[videoId],
+                isReady: true
+              }
+            }
+          }));
+          
+          markSceneAsReady(videoId);
+        },
+
+        markVideoAsComplete: (videoId) => {
+          const { markSceneAsComplete } = useSceneStore.getState();
+          
+          set((state) => ({
+            videoStates: {
+              ...state.videoStates,
+              [videoId]: {
+                ...state.videoStates[videoId],
+                isComplete: true,
+                isPlaying: false
+              }
+            }
+          }));
+          
+          markSceneAsComplete(videoId);
+        },
+
+        resetVideo: (videoId) => {
+          const { resetScene } = useSceneStore.getState();
+          
+          set((state) => ({
+            videoStates: {
+              ...state.videoStates,
+              [videoId]: {
+                ...initialVideoState
+              }
+            }
+          }));
+          
+          resetScene(videoId);
+        },
+
+        updateMetadata: (videoId, metadata) => {
+          set((state) => ({
+            videoStates: {
+              ...state.videoStates,
+              [videoId]: {
+                ...state.videoStates[videoId],
+                metadata: {
+                  ...state.videoStates[videoId].metadata,
+                  ...metadata
+                }
+              }
+            }
+          }));
+        },
+
+        setMuted: (videoId, muted) => {
+          set((state) => ({
+            videoStates: {
+              ...state.videoStates,
+              [videoId]: {
+                ...state.videoStates[videoId],
+                isMuted: muted
+              }
+            }
+          }));
+        },
+
+        toggleMuted: (videoId) => {
+          set((state) => ({
+            videoStates: {
+              ...state.videoStates,
+              [videoId]: {
+                ...state.videoStates[videoId],
+                isMuted: !state.videoStates[videoId].isMuted
+              }
+            }
+          }));
+        },
+
+        initialize: () => {
+          if (get().isInitialized) return;
+          set({ isInitialized: true });
+        }
+      })),
+      {
+        name: 'video-store',
+        partialize: (state) => ({
+          activeVideoId: state.activeVideoId,
+          videoStates: state.videoStates,
+          isInitialized: state.isInitialized
+        })
       }
-    }))
+    )
   )
 );
 

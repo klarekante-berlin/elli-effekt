@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { ReactLenis, useLenis } from 'lenis/react';
 import WelcomePage from './components/WelcomePage';
 import AudioScene from './components/AudioScene';
@@ -9,6 +9,8 @@ import BackgroundTexture from './components/BackgroundTexture';
 import Section from './components/Section';
 import { useSceneStore } from './stores/sceneStore';
 import { useBaseStore } from './stores/baseStore';
+import { useVideoStore } from './stores/videoStore';
+import { useRootStore } from './stores/rootStore';
 import './styles/global.css';
 import videoSource from './assets/videos/WhatIf_Screen_002_Video.mp4';
 
@@ -17,17 +19,30 @@ const SCROLL_SETTINGS = {
   easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t))
 };
 
+interface ScrollProps {
+  scroll: number;
+  velocity: number;
+}
+
 const App: React.FC = () => {
   const { isScrolling, setIsScrolling, isAnimationScene } = useBaseStore();
   const { currentScene } = useSceneStore();
+  const { isInitialized, initialize, hydrate } = useRootStore();
   
-  // Initialisiere den Store beim App-Start
+  // Initialisiere die Stores
   useEffect(() => {
-    const { setCurrentScene } = useSceneStore.getState();
-    setCurrentScene('welcome-scene');
-  }, []);
-  
-  const lenis = useLenis(({ scroll, velocity }) => {
+    const initializeStores = async () => {
+      if (!isInitialized) {
+        await hydrate();
+        await initialize();
+      }
+    };
+
+    initializeStores();
+  }, [isInitialized, initialize, hydrate]);
+
+  // Scroll Handler mit useLenis
+  const lenis = useLenis(({ scroll, velocity }: ScrollProps) => {
     // Verhindere mehrfaches Auslösen während des programmatischen Scrollens
     if (isScrolling) return;
 
@@ -53,9 +68,9 @@ const App: React.FC = () => {
     });
     
     // Wenn wir eine nahe Section gefunden haben und nicht genau darauf sind
-    if (closestSection && minDistance > 50) {
+    if (closestSection && minDistance > 50 && lenis) {
       setIsScrolling(true);
-      lenis?.scrollTo(closestSection, SCROLL_SETTINGS);
+      lenis.scrollTo(closestSection, SCROLL_SETTINGS);
       
       // Reset isScrolling nach der Animation
       setTimeout(() => {
@@ -66,6 +81,8 @@ const App: React.FC = () => {
 
   // Event Listener für Scene Navigation
   useEffect(() => {
+    if (!lenis) return;
+
     const handleScrollToScene = (event: CustomEvent) => {
       const { sceneId, withLock } = event.detail;
       
@@ -73,7 +90,7 @@ const App: React.FC = () => {
         setIsScrolling(true);
       }
       
-      lenis?.scrollTo(`#${sceneId}`, SCROLL_SETTINGS);
+      lenis.scrollTo(`#${sceneId}`, SCROLL_SETTINGS);
       
       if (withLock) {
         setTimeout(() => {
@@ -108,18 +125,13 @@ const App: React.FC = () => {
     scrollToScene('avocado-scene');
   };
 
+  // Zeige Loading-State während der Initialisierung
+  if (!isInitialized) {
+    return <div className="loading">Initializing...</div>;
+  }
+
   return (
-    <ReactLenis root options={{
-      duration: 1.5,
-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: !isAnimationScene,
-      touchMultiplier: 2,
-      wheelMultiplier: 1,
-      orientation: 'vertical',
-      gestureOrientation: 'vertical',
-      infinite: false,
-      syncTouch: !isAnimationScene
-    }}>
+    <ReactLenis root>
       <BackgroundTexture />
       <div className="App">
         <Section height="100vh">
