@@ -2,13 +2,13 @@ import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
-import { useSceneStore } from '../stores/sceneStore';
+import { useSceneStore, SceneId } from '../stores/sceneStore';
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 
 // Basis-Interface für alle Szenen
 export interface BaseSceneProps {
-  id: string;
+  id: Exclude<SceneId, null>;
   onComplete?: () => void;
   autoStart?: boolean;
   scrollTriggerOptions?: {

@@ -14,9 +14,9 @@ export type SceneId =
 interface SceneState {
   currentScene: SceneId;
   previousScene: SceneId;
-  sceneOrder: SceneId[];
+  sceneOrder: Exclude<SceneId, null>[];
   sceneStates: {
-    [K in Exclude<SceneId, null>]?: {
+    [K in Exclude<SceneId, null>]: {
       isComplete: boolean;
       isActive: boolean;
       isReady: boolean;
@@ -25,6 +25,7 @@ interface SceneState {
     };
   };
   isInitialized: boolean;
+  isScrolling: boolean;
 }
 
 interface SceneActions {
@@ -38,6 +39,7 @@ interface SceneActions {
   setSceneSnapping: (sceneId: SceneId, requiresSnapping: boolean) => void;
   resetScene: (sceneId: SceneId) => void;
   initialize: () => void;
+  setIsScrolling: (isScrolling: boolean) => void;
 }
 
 const initialState: SceneState = {
@@ -87,7 +89,8 @@ const initialState: SceneState = {
       requiresSnapping: false
     }
   },
-  isInitialized: false
+  isInitialized: false,
+  isScrolling: false
 };
 
 export const useSceneStore = create<SceneState & SceneActions>()(
@@ -292,6 +295,16 @@ export const useSceneStore = create<SceneState & SceneActions>()(
               }
             }
           }));
+        },
+
+        setIsScrolling: (isScrolling) => {
+          set((state) => ({
+            ...state,
+            isScrolling
+          }));
+
+          // Synchronisiere mit dem globalen Scroll-Status im Base Store
+          useBaseStore.getState().setIsScrolling(isScrolling);
         }
       })),
       {
