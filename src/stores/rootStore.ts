@@ -3,6 +3,7 @@ import { devtools, persist } from 'zustand/middleware';
 import { useBaseStore } from './baseStore';
 import { useSceneStore } from './sceneStore';
 import { useVideoStore } from './videoStore';
+import { useScrollStore } from './scrollStore';
 
 interface RootState {
   isInitialized: boolean;
@@ -24,16 +25,49 @@ export const useRootStore = create<RootState & RootActions>()(
         initialize: async () => {
           if (get().isInitialized) return;
 
-          // Initialisiere Stores in der richtigen Reihenfolge
-          const { setIsScrolling, setIsAnimationScene } = useBaseStore.getState();
-          const { setCurrentScene } = useSceneStore.getState();
+          // 1. Hydrate stores first
+          await get().hydrate();
 
-          // Base Store Reset
-          setIsScrolling(false);
-          setIsAnimationScene(false);
+          // 2. Initialize base store
+          const baseStore = useBaseStore.getState();
+          baseStore.setIsScrolling(false);
+          baseStore.setIsAnimationScene(false);
+          baseStore.initialize();
 
-          // Scene Store Initialisierung
-          setCurrentScene('welcome-scene');
+          // 3. Initialize scroll store
+          const scrollStore = useScrollStore.getState();
+          scrollStore.initialize();
+          scrollStore.setSnappingEnabled(true);
+
+          // 4. Initialize scene store with welcome scene
+          const sceneStore = useSceneStore.getState();
+          sceneStore.initialize();
+          sceneStore.setCurrentScene('welcome-scene');
+
+          // 5. Initialize video store (but don't autoplay)
+          const videoStore = useVideoStore.getState();
+          videoStore.initialize();
+
+          // 6. Set up store subscriptions
+          useSceneStore.subscribe(
+            (state) => state.currentScene,
+            (currentScene) => {
+              if (!currentScene) return;
+
+              // Verwende die Szenenkonfiguration für globale Zustände
+              const sceneState = useSceneStore.getState().sceneStates[currentScene];
+              if (!sceneState) return;
+
+              // Aktualisiere globale Zustände basierend auf Szenenkonfiguration
+              scrollStore.setSnappingEnabled(sceneState.requiresSnapping);
+              baseStore.setIsAnimationScene(sceneState.isAnimated);
+
+              // Spezielle Video-Szenen-Initialisierung
+              if (currentScene === 'video-scene') {
+                videoStore.resetVideo('video-scene');
+              }
+            }
+          );
 
           set({ isInitialized: true });
         },
@@ -41,9 +75,10 @@ export const useRootStore = create<RootState & RootActions>()(
         hydrate: async () => {
           if (get().isHydrated) return;
 
-          // Stelle sicher, dass persistierte Zustände korrekt geladen sind
+          // Rehydrate all stores in order
           await Promise.all([
             useBaseStore.persist.rehydrate(),
+            useScrollStore.persist.rehydrate(),
             useSceneStore.persist.rehydrate(),
             useVideoStore.persist.rehydrate()
           ]);
@@ -53,7 +88,10 @@ export const useRootStore = create<RootState & RootActions>()(
       }),
       {
         name: 'root-store',
-        partialize: (state) => ({ isInitialized: state.isInitialized })
+        partialize: (state) => ({ 
+          isInitialized: state.isInitialized,
+          isHydrated: state.isHydrated 
+        })
       }
     )
   )

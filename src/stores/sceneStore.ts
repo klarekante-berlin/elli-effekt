@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools, persist, subscribeWithSelector } from 'zustand/middleware';
 import { useBaseStore } from './baseStore';
+import { useScrollStore } from './scrollStore';
 
 export type SceneId = 
   | 'welcome-scene'
@@ -12,6 +13,7 @@ export type SceneId =
 
 interface SceneState {
   currentScene: SceneId;
+  previousScene: SceneId;
   sceneOrder: SceneId[];
   sceneStates: {
     [K in Exclude<SceneId, null>]?: {
@@ -19,6 +21,7 @@ interface SceneState {
       isActive: boolean;
       isReady: boolean;
       isAnimated: boolean;
+      requiresSnapping: boolean;
     };
   };
   isInitialized: boolean;
@@ -32,12 +35,14 @@ interface SceneActions {
   markSceneAsActive: (sceneId: SceneId) => void;
   markSceneAsReady: (sceneId: SceneId) => void;
   markSceneAsAnimated: (sceneId: SceneId, isAnimated: boolean) => void;
+  setSceneSnapping: (sceneId: SceneId, requiresSnapping: boolean) => void;
   resetScene: (sceneId: SceneId) => void;
   initialize: () => void;
 }
 
 const initialState: SceneState = {
   currentScene: null,
+  previousScene: null,
   sceneOrder: [
     'welcome-scene',
     'audio-scene',
@@ -50,31 +55,36 @@ const initialState: SceneState = {
       isComplete: false,
       isActive: false,
       isReady: true,
-      isAnimated: false
+      isAnimated: false,
+      requiresSnapping: true
     },
     'audio-scene': {
       isComplete: false,
       isActive: false,
       isReady: false,
-      isAnimated: false
+      isAnimated: false,
+      requiresSnapping: true
     },
     'video-scene': {
       isComplete: false,
       isActive: false,
       isReady: false,
-      isAnimated: false
+      isAnimated: false,
+      requiresSnapping: true
     },
     'chat-scene': {
       isComplete: false,
       isActive: false,
       isReady: false,
-      isAnimated: false
+      isAnimated: false,
+      requiresSnapping: true
     },
     'avocado-scene': {
       isComplete: false,
       isActive: false,
       isReady: false,
-      isAnimated: true
+      isAnimated: true,
+      requiresSnapping: false
     }
   },
   isInitialized: false
@@ -90,15 +100,23 @@ export const useSceneStore = create<SceneState & SceneActions>()(
           if (!sceneId) return;
           
           const { setIsScrolling } = useBaseStore.getState();
+          const { setSnappingEnabled } = useScrollStore.getState();
           const currentState = get();
           const targetScene = currentState.sceneStates[sceneId];
 
-          // Wenn die Zielszene eine animierte Szene ist, kein Scroll-Lock
-          if (targetScene?.isAnimated) {
+          if (!targetScene) return;
+
+          // Setze Snapping basierend auf Scene-Konfiguration
+          setSnappingEnabled(targetScene.requiresSnapping);
+          
+          // Setze Animation-Status
+          if (targetScene.isAnimated) {
+            useBaseStore.getState().setIsAnimationScene(true);
             window.dispatchEvent(new CustomEvent('scrollToScene', { 
               detail: { sceneId, withLock: false } 
             }));
           } else {
+            useBaseStore.getState().setIsAnimationScene(false);
             setIsScrolling(true);
             window.dispatchEvent(new CustomEvent('scrollToScene', { 
               detail: { sceneId, withLock: true } 
@@ -116,32 +134,44 @@ export const useSceneStore = create<SceneState & SceneActions>()(
         },
 
         setCurrentScene: (sceneId) => {
-          const { setIsAnimationScene } = useBaseStore.getState();
           const currentState = get();
+          const previousScene = currentState.currentScene;
           
-          set({ currentScene: sceneId });
-          
-          if (sceneId && currentState.sceneStates[sceneId]?.isAnimated) {
-            setIsAnimationScene(true);
-          } else {
-            setIsAnimationScene(false);
-          }
+          set({ 
+            currentScene: sceneId,
+            previousScene
+          });
 
-          // Markiere die aktuelle Szene als aktiv und alle anderen als inaktiv
-          if (sceneId) {
-            const updatedSceneStates = { ...currentState.sceneStates };
-            Object.keys(updatedSceneStates).forEach((key) => {
-              if (updatedSceneStates[key as Exclude<SceneId, null>]) {
-                updatedSceneStates[key as Exclude<SceneId, null>]!.isActive = key === sceneId;
-              }
-            });
-            set({ sceneStates: updatedSceneStates });
-          }
+          if (!sceneId) return;
+
+          const targetScene = currentState.sceneStates[sceneId];
+          if (!targetScene) return;
+
+          // Update scene states
+          const updatedSceneStates = { ...currentState.sceneStates };
+          Object.keys(updatedSceneStates).forEach((key) => {
+            if (updatedSceneStates[key as Exclude<SceneId, null>]) {
+              updatedSceneStates[key as Exclude<SceneId, null>]!.isActive = key === sceneId;
+            }
+          });
+          set({ sceneStates: updatedSceneStates });
+
+          // Update global states
+          const { setIsAnimationScene } = useBaseStore.getState();
+          const { setSnappingEnabled } = useScrollStore.getState();
+          
+          setIsAnimationScene(targetScene.isAnimated);
+          setSnappingEnabled(targetScene.requiresSnapping);
         },
 
         markSceneAsComplete: (sceneId) => {
           if (!sceneId) return;
           
+          const currentState = get();
+          const sceneState = currentState.sceneStates[sceneId];
+          
+          if (!sceneState) return;
+
           set((state) => ({
             sceneStates: {
               ...state.sceneStates,
@@ -153,8 +183,7 @@ export const useSceneStore = create<SceneState & SceneActions>()(
           }));
 
           // Automatisch zur nächsten Szene scrollen, außer bei animierten Szenen
-          const currentState = get();
-          if (!currentState.sceneStates[sceneId]?.isAnimated) {
+          if (!sceneState.isAnimated && sceneState.requiresSnapping) {
             get().scrollToNextScene();
           }
         },
@@ -199,21 +228,50 @@ export const useSceneStore = create<SceneState & SceneActions>()(
               }
             }
           }));
+
+          // Update global animation state
+          useBaseStore.getState().setIsAnimationScene(isAnimated);
         },
 
-        resetScene: (sceneId) => {
+        setSceneSnapping: (sceneId, requiresSnapping) => {
           if (!sceneId) return;
-          
-          const isAnimated = get().sceneStates[sceneId]?.isAnimated || false;
           
           set((state) => ({
             sceneStates: {
               ...state.sceneStates,
               [sceneId]: {
+                ...state.sceneStates[sceneId]!,
+                requiresSnapping
+              }
+            }
+          }));
+
+          // Update global snapping state if this is the current scene
+          const currentScene = get().currentScene;
+          if (currentScene === sceneId) {
+            useScrollStore.getState().setSnappingEnabled(requiresSnapping);
+          }
+        },
+
+        resetScene: (sceneId) => {
+          if (!sceneId) return;
+          
+          const currentState = get();
+          const sceneState = currentState.sceneStates[sceneId];
+          
+          if (!sceneState) return;
+
+          set((state) => ({
+            sceneStates: {
+              ...state.sceneStates,
+              [sceneId]: {
+                ...state.sceneStates[sceneId]!,
                 isComplete: false,
                 isActive: false,
                 isReady: false,
-                isAnimated // Behalte den Animation-Status bei
+                // Behalte Animation und Snapping Einstellungen bei
+                isAnimated: sceneState.isAnimated,
+                requiresSnapping: sceneState.requiresSnapping
               }
             }
           }));
@@ -221,13 +279,26 @@ export const useSceneStore = create<SceneState & SceneActions>()(
 
         initialize: () => {
           if (get().isInitialized) return;
-          set({ isInitialized: true });
+          
+          // Setze initiale Szene korrekt über set-Methode
+          set((state) => ({
+            isInitialized: true,
+            sceneStates: {
+              ...state.sceneStates,
+              'welcome-scene': {
+                ...state.sceneStates['welcome-scene']!,
+                isReady: true,
+                isActive: true
+              }
+            }
+          }));
         }
       })),
       {
         name: 'scene-store',
         partialize: (state) => ({ 
           currentScene: state.currentScene,
+          previousScene: state.previousScene,
           sceneStates: state.sceneStates,
           isInitialized: state.isInitialized
         })
@@ -250,4 +321,10 @@ export const useIsSceneReady = (sceneId: Exclude<SceneId, null>): boolean =>
   useSceneStore((state) => state.sceneStates[sceneId]?.isReady ?? false);
 
 export const useIsSceneAnimated = (sceneId: Exclude<SceneId, null>): boolean =>
-  useSceneStore((state) => state.sceneStates[sceneId]?.isAnimated ?? false); 
+  useSceneStore((state) => state.sceneStates[sceneId]?.isAnimated ?? false);
+
+export const useSceneRequiresSnapping = (sceneId: Exclude<SceneId, null>): boolean =>
+  useSceneStore((state) => state.sceneStates[sceneId]?.requiresSnapping ?? true);
+
+export const usePreviousScene = (): SceneId =>
+  useSceneStore((state) => state.previousScene); 

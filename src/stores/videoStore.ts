@@ -18,6 +18,7 @@ interface VideoState {
   isComplete: boolean;
   isPlaying: boolean;
   isMuted: boolean;
+  shouldAutoplay: boolean;
   metadata: VideoMetadata;
 }
 
@@ -45,6 +46,9 @@ interface VideoActions {
   setMuted: (videoId: VideoId, muted: boolean) => void;
   toggleMuted: (videoId: VideoId) => void;
 
+  // Autoplay
+  setShouldAutoplay: (videoId: VideoId, shouldAutoplay: boolean) => void;
+
   // Initialisierung
   initialize: () => void;
 }
@@ -61,6 +65,7 @@ const initialVideoState: VideoState = {
   isComplete: false,
   isPlaying: false,
   isMuted: false,
+  shouldAutoplay: false,
   metadata: initialMetadata
 };
 
@@ -79,6 +84,14 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
         ...initialState,
 
         play: (videoId) => {
+          const videoState = get().videoStates[videoId];
+          
+          // Nur abspielen, wenn das Video bereit ist
+          if (!videoState.isReady) {
+            get().setShouldAutoplay(videoId, true);
+            return;
+          }
+
           const { markSceneAsActive } = useSceneStore.getState();
 
           set((state) => ({
@@ -87,7 +100,8 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
               ...state.videoStates,
               [videoId]: {
                 ...state.videoStates[videoId],
-                isPlaying: true
+                isPlaying: true,
+                shouldAutoplay: false
               }
             }
           }));
@@ -101,7 +115,8 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
               ...state.videoStates,
               [videoId]: {
                 ...state.videoStates[videoId],
-                isPlaying: false
+                isPlaying: false,
+                shouldAutoplay: false
               }
             }
           }));
@@ -120,13 +135,17 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
 
         markVideoAsReady: (videoId) => {
           const { markSceneAsReady } = useSceneStore.getState();
+          const currentState = get();
+          const videoState = currentState.videoStates[videoId];
           
           set((state) => ({
             videoStates: {
               ...state.videoStates,
               [videoId]: {
                 ...state.videoStates[videoId],
-                isReady: true
+                isReady: true,
+                // Starte Video nur, wenn shouldAutoplay gesetzt ist
+                isPlaying: videoState.shouldAutoplay
               }
             }
           }));
@@ -143,7 +162,8 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
               [videoId]: {
                 ...state.videoStates[videoId],
                 isComplete: true,
-                isPlaying: false
+                isPlaying: false,
+                shouldAutoplay: false
               }
             }
           }));
@@ -153,12 +173,15 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
 
         resetVideo: (videoId) => {
           const { resetScene } = useSceneStore.getState();
+          const currentState = get();
+          const shouldAutoplay = currentState.videoStates[videoId].shouldAutoplay;
           
           set((state) => ({
             videoStates: {
               ...state.videoStates,
               [videoId]: {
-                ...initialVideoState
+                ...initialVideoState,
+                shouldAutoplay // Behalte den aktuellen shouldAutoplay-Status bei
               }
             }
           }));
@@ -205,6 +228,18 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
           }));
         },
 
+        setShouldAutoplay: (videoId, shouldAutoplay) => {
+          set((state) => ({
+            videoStates: {
+              ...state.videoStates,
+              [videoId]: {
+                ...state.videoStates[videoId],
+                shouldAutoplay
+              }
+            }
+          }));
+        },
+
         initialize: () => {
           if (get().isInitialized) return;
           set({ isInitialized: true });
@@ -239,4 +274,7 @@ export const useVideoMetadata = (videoId: VideoId): VideoMetadata =>
   useVideoStore((state) => state.videoStates[videoId].metadata);
 
 export const useIsVideoMuted = (videoId: VideoId): boolean =>
-  useVideoStore((state) => state.videoStates[videoId].isMuted); 
+  useVideoStore((state) => state.videoStates[videoId].isMuted);
+
+export const useShouldVideoAutoplay = (videoId: VideoId): boolean =>
+  useVideoStore((state) => state.videoStates[videoId].shouldAutoplay); 

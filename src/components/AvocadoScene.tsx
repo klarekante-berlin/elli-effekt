@@ -6,13 +6,13 @@ import { withSceneControl } from '../hoc/withSceneControl';
 import { ReactComponent as AvocadoIcon } from '../assets/svg/avocado.svg';
 import { ReactComponent as AvocadoFilledIcon } from '../assets/svg/avocado_filled.svg';
 import { ReactComponent as BathtubIcon } from '../assets/svg/bathtub.svg';
-import { useSceneStore } from '../stores/sceneStore';
+import { useSceneStore, SceneId } from '../stores/sceneStore';
 import '../styles/AvocadoScene.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
 interface AvocadoSceneProps {
-  id: string;
+  id: Exclude<SceneId, null>;
 }
 
 const AvocadoScene: React.FC<AvocadoSceneProps> = ({ id }) => {
@@ -99,13 +99,13 @@ const AvocadoScene: React.FC<AvocadoSceneProps> = ({ id }) => {
           onLeave: () => {
             // Setze die aktuelle Szene nur zurück, wenn wir wirklich die Szene verlassen
             if (document.documentElement.scrollTop > containerRef.current!.offsetTop) {
-              setCurrentScene('');
+              setCurrentScene(null);
             }
           },
           onLeaveBack: () => {
             // Setze die aktuelle Szene nur zurück, wenn wir wirklich die Szene verlassen
             if (document.documentElement.scrollTop < containerRef.current!.offsetTop) {
-              setCurrentScene('');
+              setCurrentScene(null);
             }
           }
         }
@@ -217,7 +217,7 @@ const AvocadoScene: React.FC<AvocadoSceneProps> = ({ id }) => {
     return () => {
       ctx.revert();
       splitText.revert();
-      setCurrentScene('');
+      setCurrentScene(null);
     };
   }, [id, setCurrentScene]);
 
