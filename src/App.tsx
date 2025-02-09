@@ -1,6 +1,9 @@
 import React, { useEffect } from 'react';
 import { ReactLenis, useLenis } from 'lenis/react';
 import type { LenisOptions } from '@studio-freight/lenis';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
 import WelcomePage from './components/WelcomePage';
 import AudioScene from './components/AudioScene';
 import VideoScene from './components/VideoScene';
@@ -13,6 +16,9 @@ import { useBaseStore } from './stores/baseStore';
 import { useRootStore } from './stores/rootStore';
 import './styles/global.css';
 import videoSource from './assets/videos/WhatIf_Screen_002_Video.mp4';
+
+// GSAP Plugins registrieren
+gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 
 const SCROLL_SETTINGS = {
   duration: 1.2,
@@ -52,97 +58,59 @@ const App: React.FC = () => {
     initializeStores();
   }, [isInitialized, initialize, hydrate]);
 
-  // Scroll Handler mit useLenis
+  // ScrollTrigger Setup für Snapping
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const sections = document.querySelectorAll('.section');
+    const triggers: ScrollTrigger[] = [];
+
+    sections.forEach((section) => {
+      const sceneId = section.id as SceneId;
+      const sceneState = sceneStates[sceneId as Exclude<SceneId, null>];
+      
+      // Überspringe Avocado-Szene und Szenen ohne Snapping
+      if (sceneId === 'avocado-scene' || !sceneState?.requiresSnapping) {
+        return;
+      }
+
+      const trigger = ScrollTrigger.create({
+        trigger: section,
+        start: 'top center',
+        end: 'bottom center',
+        onToggle: (self) => {
+          if (self.isActive && !isScrolling) {
+            console.log('ScrollTrigger: Scene toggle', {
+              scene: sceneId,
+              direction: self.direction,
+              progress: self.progress
+            });
+
+            const { scrollToScene } = useSceneStore.getState();
+            setIsScrolling(true);
+            scrollToScene(sceneId);
+          }
+        }
+      });
+
+      triggers.push(trigger);
+    });
+
+    return () => {
+      triggers.forEach(trigger => trigger.kill());
+    };
+  }, [isInitialized, sceneStates, isScrolling, setIsScrolling]);
+
+  // Lenis Scroll Handler (nur für Basis-Funktionalität)
   const lenis = useLenis(({ scroll, velocity }: ScrollProps) => {
-    // Verhindere mehrfaches Auslösen während des programmatischen Scrollens
+    // Verhindere Scrollen während Animation
     if (isScrolling) {
       return;
     }
 
-    // Hole aktuelle Szenen-Konfiguration
-    if (!currentScene) return;
-    const currentSceneConfig = sceneStates[currentScene]?.config;
-    
-    if (!currentSceneConfig) {
-      console.error('Invalid scene configuration for', currentScene);
+    // Hohe Geschwindigkeit deaktiviert Snapping
+    if (Math.abs(velocity) > 0.8) {
       return;
-    }
-
-    // Kein Snapping für:
-    // 1. Hohe Scroll-Geschwindigkeit
-    // 2. Avocado-Szene
-    const isAvocadoScene = currentScene === 'avocado-scene';
-    const isHighVelocity = Math.abs(velocity) > 0.8;
-
-    if (isHighVelocity || isAvocadoScene) {
-      if (isHighVelocity) {
-        console.log('Scroll: High velocity detected, skipping snap', { velocity });
-      } else if (isAvocadoScene) {
-        console.log('Scroll: Avocado scene, snapping disabled');
-      }
-      return;
-    }
-
-    const sections = document.querySelectorAll<HTMLElement>('.section');
-    const viewportHeight = window.innerHeight;
-    const scrollThreshold = viewportHeight * 0.3; // 30% der Viewport-Höhe
-    
-    // Finde die nächstgelegene Section
-    let closestSection: HTMLElement | null = null;
-    let minDistance = Infinity;
-    let targetSceneId: string | null = null;
-    
-    sections.forEach((section) => {
-      const rect = section.getBoundingClientRect();
-      const sectionTop = rect.top;
-      const distance = Math.abs(sectionTop);
-      
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestSection = section;
-        targetSceneId = section.id;
-      }
-    });
-    
-    // Wenn wir eine nahe Section gefunden haben
-    if (closestSection && targetSceneId && Math.abs(minDistance) > 5) {
-      // Prüfe ob die Ziel-Szene Snapping erlaubt
-      const sceneId = targetSceneId as Exclude<SceneId, null>;
-      const targetScene = sceneStates[sceneId];
-      
-      // Überprüfe Snapping-Bedingungen
-      const shouldSnap = targetScene?.config?.allowSnapping && targetScene?.requiresSnapping;
-      
-      if (!shouldSnap) {
-        console.log('Scroll: Target scene does not allow snapping', {
-          scene: sceneId,
-          type: targetScene?.config?.type,
-          allowSnapping: targetScene?.config?.allowSnapping,
-          requiresSnapping: targetScene?.requiresSnapping
-        });
-        return;
-      }
-
-      // Verhindere Snapping zur Avocado-Szene
-      if (sceneId === 'avocado-scene') {
-        console.log('Scroll: Preventing snap to avocado scene');
-        return;
-      }
-
-      // Nur snappen, wenn wir nah genug an der Section sind
-      if (Math.abs(minDistance) <= scrollThreshold) {
-        console.log('Scroll: Snapping to section', {
-          from: currentScene,
-          to: sceneId,
-          distance: minDistance,
-          threshold: scrollThreshold
-        });
-
-        // Nutze scrollToScene für einheitliches Verhalten
-        const { scrollToScene } = useSceneStore.getState();
-        setIsScrolling(true);
-        scrollToScene(sceneId);
-      }
     }
   });
 
@@ -161,30 +129,39 @@ const App: React.FC = () => {
         preserveScrollPosition
       });
 
-      // Setze Scroll-Status
       setIsScrolling(true);
       
-      // Konfiguriere Scroll-Optionen basierend auf der Szene
       const isAvocadoScene = sceneId === 'avocado-scene';
-      const scrollOptions = {
-        offset: 0,
-        duration: isAvocadoScene ? 0 : 1.2,
-        easing: (t: number) => 1 - Math.pow(1 - t, 3), // Cubic ease-out
-        lock: withLock || (!isAvocadoScene && enableSnapping),
-        immediate: isAvocadoScene || preserveScrollPosition
-      };
-
-      // Führe Scroll aus
-      lenis.scrollTo(`#${sceneId}`, scrollOptions);
+      const targetElement = document.querySelector(`#${sceneId}`) as HTMLElement;
       
-      // Reset Scroll-Status nach Animation
-      if (!isAvocadoScene) {
-        setTimeout(() => {
-          setIsScrolling(false);
-        }, scrollOptions.duration * 1000);
-      } else {
-        // Für Avocado-Szene sofort zurücksetzen
+      if (!targetElement) {
         setIsScrolling(false);
+        return;
+      }
+
+      if (isAvocadoScene || preserveScrollPosition) {
+        // Direktes Scrollen für Avocado oder wenn Position beibehalten werden soll
+        lenis.scrollTo(targetElement, {
+          offset: 0,
+          duration: 0,
+          immediate: true
+        });
+        setIsScrolling(false);
+      } else {
+        // GSAP Animation für alle anderen Szenen
+        gsap.to(window, {
+          duration: SCROLL_SETTINGS.duration,
+          scrollTo: {
+            y: targetElement,
+            autoKill: false
+          },
+          ease: SCROLL_SETTINGS.easing,
+          onComplete: () => {
+            setTimeout(() => {
+              setIsScrolling(false);
+            }, 100);
+          }
+        });
       }
     };
 
