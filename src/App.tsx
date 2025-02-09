@@ -16,18 +16,19 @@ import './styles/global.css';
 import videoSource from './assets/videos/WhatIf_Screen_002_Video.mp4';
 
 const SCROLL_SETTINGS = {
-  duration: 1.5,
+  duration: 1.2,
   easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t))
 };
 
 const LENIS_CONFIG: LenisOptions = {
-  duration: 1.5,
+  duration: 1.2,
   orientation: 'vertical',
   gestureOrientation: 'vertical',
   smoothWheel: true,
   wheelMultiplier: 1,
   touchMultiplier: 2,
-  infinite: false
+  infinite: false,
+  syncTouch: true
 };
 
 interface ScrollProps {
@@ -74,10 +75,9 @@ const App: React.FC = () => {
     // 3. Scroll-Animation-Szenen
     // 4. Avocado-Szene
     const isAvocadoScene = currentScene === 'avocado-scene';
-    const isHighVelocity = Math.abs(velocity) > 0.1;
+    const isHighVelocity = Math.abs(velocity) > 0.5; // Erhöhter Schwellenwert
 
     if (
-      isAnimationScene || 
       isHighVelocity || 
       currentSceneConfig.type === 'scroll' || 
       currentSceneConfig.hasScrollTimeline ||
@@ -88,8 +88,7 @@ const App: React.FC = () => {
       } else if (isAvocadoScene) {
         console.log('Scroll: Avocado scene, snapping disabled');
       } else {
-        console.log('Scroll: Animation or scroll scene, snapping disabled', {
-          isAnimationScene,
+        console.log('Scroll: Scroll scene, snapping disabled', {
           sceneType: currentSceneConfig.type,
           hasTimeline: currentSceneConfig.hasScrollTimeline
         });
@@ -98,9 +97,8 @@ const App: React.FC = () => {
     }
 
     const sections = document.querySelectorAll<HTMLElement>('.section');
-    const currentScrollPosition = scroll;
     const viewportHeight = window.innerHeight;
-    const scrollThreshold = viewportHeight * 0.3; // 30% der Viewport-Höhe
+    const scrollThreshold = viewportHeight * 0.2; // 20% der Viewport-Höhe
     
     // Finde die nächstgelegene Section
     let closestSection: HTMLElement | null = null;
@@ -120,7 +118,7 @@ const App: React.FC = () => {
     });
     
     // Wenn wir eine nahe Section gefunden haben und nicht genau darauf sind
-    if (closestSection && targetSceneId && Math.abs(minDistance) > 10 && lenis) {
+    if (closestSection && targetSceneId && Math.abs(minDistance) > 5 && lenis) {
       // Prüfe ob die Ziel-Szene Snapping erlaubt
       const sceneId = targetSceneId as Exclude<SceneId, null>;
       const targetSceneConfig = sceneStates[sceneId]?.config;
@@ -153,16 +151,17 @@ const App: React.FC = () => {
 
       setIsScrolling(true);
       lenis.scrollTo(closestSection, {
-        ...SCROLL_SETTINGS,
+        offset: 0,
+        duration: 0.8,
+        easing: (t: number) => 1 - Math.pow(1 - t, 3), // Cubic ease-out
         lock: true,
-        immediate: false,
-        duration: 1.0 // Kürzere Duration für responsiveres Gefühl
+        immediate: false
       });
       
       // Reset isScrolling nach der Animation
       setTimeout(() => {
         setIsScrolling(false);
-      }, SCROLL_SETTINGS.duration * 1000);
+      }, 800); // Entspricht der duration
     }
   });
 
@@ -187,10 +186,11 @@ const App: React.FC = () => {
       // Konfiguriere Scroll-Optionen basierend auf der Szene
       const isAvocadoScene = sceneId === 'avocado-scene';
       const scrollOptions = {
-        ...SCROLL_SETTINGS,
+        offset: 0,
+        duration: isAvocadoScene ? 0 : 1.2,
+        easing: (t: number) => 1 - Math.pow(1 - t, 3), // Cubic ease-out
         lock: withLock || (!isAvocadoScene && enableSnapping),
-        immediate: isAvocadoScene || preserveScrollPosition,
-        duration: isAvocadoScene ? 0 : SCROLL_SETTINGS.duration
+        immediate: isAvocadoScene || preserveScrollPosition
       };
 
       // Führe Scroll aus

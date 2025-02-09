@@ -145,49 +145,62 @@ export const useSceneStore = create<SceneState & SceneActions>()(
         ...initialState,
 
         scrollToScene: (sceneId) => {
-          if (!sceneId) return;
+          if (!sceneId) {
+            console.error('Store: No scene ID provided');
+            return;
+          }
           
           const { setIsScrolling } = useBaseStore.getState();
           const { setSnappingEnabled } = useScrollStore.getState();
           const currentState = get();
-          const targetScene = currentState.sceneStates[sceneId];
-          const previousScene = currentState.currentScene;
-
-          if (!targetScene || !targetScene.config) {
-            console.error('Store: Invalid scene configuration for', sceneId);
+          
+          // Prüfe, ob die Szene existiert
+          if (!currentState.sceneStates[sceneId]) {
+            console.error(`Store: Scene ${sceneId} does not exist`);
             return;
           }
 
-          console.log(`Store: Scrolling to scene ${sceneId}`, {
+          const targetScene = currentState.sceneStates[sceneId];
+          const previousScene = currentState.currentScene;
+          const currentSceneState = previousScene ? currentState.sceneStates[previousScene] : null;
+
+          // Debug-Log für die Szenen-Konfiguration
+          console.log(`Store: Scene transition request:`, {
             from: previousScene || 'initial',
             to: sceneId,
-            sceneType: targetScene.config.type,
-            allowSnapping: targetScene.config.allowSnapping,
-            hasScrollTimeline: targetScene.config.hasScrollTimeline,
-            currentScrolling: currentState.isScrolling
+            targetConfig: targetScene.config,
+            currentConfig: currentSceneState?.config,
+            isAnimated: targetScene.isAnimated,
+            requiresSnapping: targetScene.requiresSnapping
           });
 
           // Spezialbehandlung für die Avocado-Szene
           const isAvocadoScene = sceneId === 'avocado-scene';
           const isComingFromAvocado = previousScene === 'avocado-scene';
 
-          // Erweiterte Snapping-Logik basierend auf Szenen-Typ
-          const shouldEnableSnapping = 
-            !isAvocadoScene && 
-            targetScene.config.allowSnapping && 
-            !targetScene.config.hasScrollTimeline &&
-            targetScene.requiresSnapping;
+          // Erweiterte Snapping-Logik
+          const shouldEnableSnapping = !isAvocadoScene && (
+            // Normale Snapping-Regeln
+            (targetScene.config.allowSnapping && targetScene.requiresSnapping) ||
+            // Erzwungenes Snapping nach Avocado-Szene
+            (isComingFromAvocado && currentState.sceneStates[sceneId]?.requiresSnapping) ||
+            // Erzwungenes Snapping nach Animation/Interaktion
+            (currentSceneState?.config.type === 'interactive' && targetScene.requiresSnapping)
+          );
           
           console.log('Store: Snapping decision:', {
             shouldEnableSnapping,
             reason: isAvocadoScene
               ? 'Avocado scene - snapping disabled'
-              : targetScene.config.type === 'scroll'
-                ? 'Scroll animation scene - snapping disabled'
-                : shouldEnableSnapping 
-                  ? 'Scene allows snapping'
-                  : 'Snapping disabled by configuration',
-            sceneType: targetScene.config.type
+              : isComingFromAvocado
+                ? 'Coming from avocado scene'
+                : currentSceneState?.config.type === 'interactive'
+                  ? 'Coming from interactive scene'
+                  : shouldEnableSnapping 
+                    ? 'Scene allows snapping'
+                    : 'Snapping disabled by configuration',
+            sceneType: targetScene.config.type,
+            fromType: currentSceneState?.config.type
           });
           
           // Setze Snapping-Status
@@ -196,7 +209,7 @@ export const useSceneStore = create<SceneState & SceneActions>()(
           // Setze Animation-Status und dispatche Event
           const eventDetail = {
             sceneId,
-            withLock: !isAvocadoScene && shouldEnableSnapping,
+            withLock: shouldEnableSnapping,
             enableSnapping: shouldEnableSnapping,
             preserveScrollPosition: targetScene.config.preserveScrollPosition || isAvocadoScene,
             isAnimated: targetScene.isAnimated,
@@ -329,8 +342,27 @@ export const useSceneStore = create<SceneState & SceneActions>()(
             }
           }));
 
-          // Automatisch zur nächsten Szene scrollen, außer bei animierten Szenen
-          if (!sceneState.isAnimated && sceneState.requiresSnapping) {
+          // Erweiterte Logik für automatisches Scrollen
+          const isInteractiveScene = sceneState.config.type === 'interactive';
+          const isAvocadoScene = sceneId === 'avocado-scene';
+          const shouldAutoScroll = (
+            !isAvocadoScene && (
+              // Normale Szenen mit Snapping
+              (!sceneState.isAnimated && sceneState.requiresSnapping) ||
+              // Interaktive Szenen nach Abschluss
+              (isInteractiveScene && sceneState.requiresSnapping)
+            )
+          );
+
+          console.log('Store: Scene complete:', {
+            scene: sceneId,
+            isInteractive: isInteractiveScene,
+            shouldAutoScroll,
+            isAnimated: sceneState.isAnimated,
+            requiresSnapping: sceneState.requiresSnapping
+          });
+
+          if (shouldAutoScroll) {
             get().scrollToNextScene();
           }
         },
@@ -427,18 +459,46 @@ export const useSceneStore = create<SceneState & SceneActions>()(
         initialize: () => {
           if (get().isInitialized) return;
           
-          // Setze initiale Szene korrekt über set-Methode
+          const currentState = get();
+          
+          // Überprüfe alle Szenen-Konfigurationen
+          const updatedSceneStates = { ...currentState.sceneStates };
+          Object.entries(updatedSceneStates).forEach(([sceneId, state]) => {
+            if (!state.config) {
+              console.error(`Store: Missing configuration for scene ${sceneId}, setting defaults`);
+              state.config = {
+                type: 'static',
+                allowSnapping: true,
+                preserveScrollPosition: false,
+                hasScrollTimeline: false
+              };
+            }
+          });
+          
+          // Setze initiale Szene und aktualisierte Konfigurationen
           set((state) => ({
             isInitialized: true,
             sceneStates: {
-              ...state.sceneStates,
+              ...updatedSceneStates,
               'welcome-scene': {
-                ...state.sceneStates['welcome-scene']!,
+                ...updatedSceneStates['welcome-scene']!,
                 isReady: true,
                 isActive: true
               }
             }
           }));
+
+          // Debug-Log für alle Szenen-Konfigurationen
+          console.log('Store: Scene configurations after initialization:', 
+            Object.entries(updatedSceneStates).reduce((acc, [sceneId, state]) => ({
+              ...acc,
+              [sceneId]: {
+                config: state.config,
+                isAnimated: state.isAnimated,
+                requiresSnapping: state.requiresSnapping
+              }
+            }), {})
+          );
         },
 
         setIsScrolling: (isScrolling) => {
