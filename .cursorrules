@@ -214,7 +214,48 @@ export const Component: FC<IComponentProps> = memo(({ props }) => {
 - Bundle size monitoring
 - Performance monitoring
 
-# 7. Testing Standards
+# 7. Lenis Smooth Scrolling Standards
+@Lenis @React @GSAP
+
+## Import Standards
+```typescript
+// Korrekte Import-Anweisung (WICHTIG: Nicht mehr @studio-freight/lenis verwenden)
+import { ReactLenis } from 'lenis/react'
+```
+
+## GSAP Integration
+```typescript
+import gsap from 'gsap'
+import { ReactLenis } from 'lenis/react'
+import { useEffect, useRef } from 'react'
+
+function App() {
+  const lenisRef = useRef()
+  
+  useEffect(() => {
+    function update(time) {
+      lenisRef.current?.lenis?.raf(time * 1000)
+    }
+  
+    gsap.ticker.add(update)
+    return () => gsap.ticker.remove(update)
+  }, [])
+  
+  return (
+    <ReactLenis options={{ autoRaf: false }} ref={lenisRef}>
+      { /* content */ }
+    </ReactLenis>
+  )
+}
+```
+
+## Best Practices
+- Immer `autoRaf: false` bei GSAP Integration verwenden
+- Proper Cleanup in useEffect durchführen
+- RAF-Loop Optimierung beachten
+- Korrekte TypeScript Typen verwenden
+
+# 8. Testing Standards
 ## Unit Tests
 ```typescript
 describe('Component', () => {
@@ -238,7 +279,7 @@ describe('Component', () => {
 - Performance tests
 - A11y tests
 
-# 8. Code Style
+# 9. Code Style
 ## General
 - Indentation: 2 spaces
 - Maximum line length: 100
@@ -252,7 +293,7 @@ describe('Component', () => {
 - Interfaces: IPascalCase
 - Types: TPascalCase
 
-# 9. Development Workflow
+# 10. Development Workflow
 ## Chain of Thought
 1. Requirements analysis
 2. Implementation planning
@@ -267,7 +308,7 @@ describe('Component', () => {
 - Tests (Coverage, Edge cases)
 - Documentation (JSDoc, README, API docs)
 
-# 10. Store Management and Zustand
+# 11. Store Management and Zustand
 @Zustand @React @TypeScript
 
 ## Store Architecture
@@ -416,7 +457,7 @@ const Scene: FC<SceneProps> = ({ id }) => {
 - User feedback
 - Logging and monitoring
 
-# 11. Smooth Scrolling mit Lenis
+# 12. Smooth Scrolling mit Lenis
 @Lenis @React @TypeScript
 
 ## Lenis Integration Best Practices
