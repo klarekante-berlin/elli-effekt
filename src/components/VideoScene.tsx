@@ -9,6 +9,7 @@ import {
   useIsVideoPlaying,
   useIsVideoMuted,
   useVideoMetadata,
+  useIsScrollTriggered,
   type VideoId
 } from '../stores/videoStore';
 import '../styles/VideoScene.css';
@@ -54,6 +55,7 @@ const VideoScene: React.FC<VideoSceneProps> = ({
   const isPlaying = useIsVideoPlaying(id);
   const isMuted = useIsVideoMuted(id);
   const metadata = useVideoMetadata(id);
+  const isScrollTriggered = useIsScrollTriggered(id);
   const {
     play,
     pause,
@@ -62,18 +64,29 @@ const VideoScene: React.FC<VideoSceneProps> = ({
     toggleMuted,
     updateMetadata,
     markVideoAsReady,
-    markVideoAsComplete
+    markVideoAsComplete,
+    setScrollTriggered,
+    initialize
   } = useVideoStore();
 
   // Initialisierung
   useEffect(() => {
     console.log(`Video ${id}: Mount`);
     
+    // Initialisiere den Store und setze alle States zurück
+    initialize();
+    
+    // Explizit alle States zurücksetzen
+    setScrollTriggered(id, false);
+    pause(id);
+    setMuted(id, startMuted);
+    
     return () => {
       console.log(`Video ${id}: Unmount`);
+      setScrollTriggered(id, false);
       pause(id);
     };
-  }, [id, pause]);
+  }, [id, initialize, setScrollTriggered, pause, setMuted, startMuted]);
 
   // Touch-Event-Handler
   useEffect(() => {
@@ -108,51 +121,78 @@ const VideoScene: React.FC<VideoSceneProps> = ({
 
   // ScrollTrigger für Sichtbarkeit
   useEffect(() => {
-    if (!containerRef.current || !isVideoReady) return;
+    if (!containerRef.current || !isVideoReady) {
+      console.log(`Video ${id}: ScrollTrigger Setup waiting:`, {
+        hasContainer: !!containerRef.current,
+        isVideoReady,
+        documentReady: document.readyState
+      });
+      return;
+    }
 
-    console.log(`Video ${id}: ScrollTrigger Setup`);
+    console.log(`Video ${id}: ScrollTrigger Setup starting`);
     
     const trigger = ScrollTrigger.create({
       trigger: containerRef.current,
-      start: "top 80%",
-      end: "bottom 20%",
+      start: "top center",
+      end: "bottom center",
+      scrub: false,
       onEnter: () => {
-        console.log(`Video ${id}: Enter - Start Playing`);
-        play(id);
+        console.log(`Video ${id}: Enter - Attempting to play`);
+        requestAnimationFrame(() => {
+          setScrollTriggered(id, true);
+        });
       },
       onLeave: () => {
-        console.log(`Video ${id}: Leave - Pause`);
-        pause(id);
+        console.log(`Video ${id}: Leave - Pausing`);
+        requestAnimationFrame(() => {
+          setScrollTriggered(id, false);
+        });
       },
       onEnterBack: () => {
-        console.log(`Video ${id}: Enter Back - Start Playing`);
-        play(id);
+        console.log(`Video ${id}: Enter Back - Attempting to resume`);
+        requestAnimationFrame(() => {
+          setScrollTriggered(id, true);
+        });
       },
       onLeaveBack: () => {
-        console.log(`Video ${id}: Leave Back - Pause`);
-        pause(id);
+        console.log(`Video ${id}: Leave Back - Pausing`);
+        requestAnimationFrame(() => {
+          setScrollTriggered(id, false);
+        });
       }
     });
+
+    // ScrollTrigger sofort refreshen
+    ScrollTrigger.refresh();
 
     return () => {
       console.log(`Video ${id}: ScrollTrigger Cleanup`);
       trigger.kill();
     };
-  }, [id, isVideoReady, play, pause]);
+  }, [id, isVideoReady, setScrollTriggered]);
 
   // Effekt für isReadyToPlay (nach Audio)
   useEffect(() => {
-    if (isReadyToPlay) {
+    if (isReadyToPlay && isVideoReady) {
       console.log(`Video ${id}: Ready to play from audio`);
-      play(id);
+      requestAnimationFrame(() => {
+        setScrollTriggered(id, true);
+      });
     }
-  }, [isReadyToPlay, id, play]);
+  }, [isReadyToPlay, isVideoReady, id, setScrollTriggered]);
 
   const handleVideoReady = () => {
-    console.log(`Video ${id}: Ready`);
+    console.log(`Video ${id}: Ready Event`, {
+      currentTime: playerRef.current?.getCurrentTime(),
+      duration: playerRef.current?.getDuration()
+    });
+    
     setIsVideoReady(true);
     markVideoAsReady(id);
-    setMuted(id, startMuted);
+    
+    // ScrollTrigger sofort refreshen
+    ScrollTrigger.refresh();
   };
 
   const handleVideoError = (error: unknown) => {
@@ -214,7 +254,7 @@ const VideoScene: React.FC<VideoSceneProps> = ({
           <ReactPlayer
             ref={playerRef}
             url={videoSource}
-            playing={isPlaying}
+            playing={isPlaying && isScrollTriggered}
             loop={loop}
             muted={isMuted}
             volume={metadata.volume}

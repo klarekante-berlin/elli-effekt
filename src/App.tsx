@@ -146,7 +146,7 @@ const App: React.FC = () => {
           <VideoScene 
             id="video-scene"
             videoSource={videoSource}
-            isReadyToPlay={true}
+            isReadyToPlay={false}
             onComplete={handleVideoComplete}
             showControls={true}
             loop={false}

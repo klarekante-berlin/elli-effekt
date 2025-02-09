@@ -3,7 +3,7 @@ import { devtools, persist } from 'zustand/middleware';
 import { useBaseStore } from './baseStore';
 import { useSceneStore } from './sceneStore';
 import { useVideoStore } from './videoStore';
-import { useScrollStore } from './scrollStore';
+
 
 interface RootState {
   isInitialized: boolean;
@@ -34,10 +34,6 @@ export const useRootStore = create<RootState & RootActions>()(
           baseStore.setIsAnimationScene(false);
           baseStore.initialize();
 
-          // 3. Initialize scroll store
-          const scrollStore = useScrollStore.getState();
-          scrollStore.initialize();
-          scrollStore.setSnappingEnabled(true);
 
           // 4. Initialize scene store with welcome scene
           const sceneStore = useSceneStore.getState();
@@ -59,7 +55,6 @@ export const useRootStore = create<RootState & RootActions>()(
               if (!sceneState) return;
 
               // Aktualisiere globale Zustände basierend auf Szenenkonfiguration
-              scrollStore.setSnappingEnabled(sceneState.requiresSnapping);
               baseStore.setIsAnimationScene(sceneState.isAnimated);
 
               // Spezielle Video-Szenen-Initialisierung
@@ -78,7 +73,6 @@ export const useRootStore = create<RootState & RootActions>()(
           // Rehydrate all stores in order
           await Promise.all([
             useBaseStore.persist.rehydrate(),
-            useScrollStore.persist.rehydrate(),
             useSceneStore.persist.rehydrate(),
             useVideoStore.persist.rehydrate()
           ]);

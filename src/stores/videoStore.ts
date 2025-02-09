@@ -19,6 +19,7 @@ interface VideoState {
   isPlaying: boolean;
   isMuted: boolean;
   shouldAutoplay: boolean;
+  isScrollTriggered: boolean;
   metadata: VideoMetadata;
 }
 
@@ -51,6 +52,9 @@ interface VideoActions {
 
   // Initialisierung
   initialize: () => void;
+
+  // Neue Aktion für Scroll-Trigger
+  setScrollTriggered: (videoId: VideoId, isTriggered: boolean) => void;
 }
 
 const initialMetadata: VideoMetadata = {
@@ -66,6 +70,7 @@ const initialVideoState: VideoState = {
   isPlaying: false,
   isMuted: false,
   shouldAutoplay: false,
+  isScrollTriggered: false,
   metadata: initialMetadata
 };
 
@@ -83,28 +88,101 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
       subscribeWithSelector((set, get) => ({
         ...initialState,
 
+        initialize: () => {
+          if (get().isInitialized) return;
+          
+          // Stelle sicher, dass der baseStore zuerst initialisiert wird
+          const { initialize: initializeBase } = useBaseStore.getState();
+          initializeBase();
+          
+          // Reset aller Video-States beim Initialisieren
+          set((state) => ({
+            ...state,
+            isInitialized: true,
+            activeVideoId: null,
+            videoStates: {
+              'video-scene': {
+                ...initialVideoState,
+                isPlaying: false,
+                isScrollTriggered: false,
+                shouldAutoplay: false,
+                isReady: false
+              }
+            }
+          }));
+        },
+
+        setScrollTriggered: (videoId, isTriggered) => {
+          const currentState = get().videoStates[videoId];
+          const { isInitialized } = useBaseStore.getState();
+          
+          console.log(`VideoStore: setScrollTriggered`, {
+            videoId,
+            isTriggered,
+            currentState,
+            isInitialized
+          });
+          
+          // Nicht triggern wenn:
+          // 1. Video nicht bereit
+          // 2. Store nicht initialisiert
+          if (!currentState.isReady || !isInitialized) {
+            console.log('VideoStore: Trigger conditions not met');
+            return;
+          }
+          
+          set((state) => {
+            const newState = {
+              videoStates: {
+                ...state.videoStates,
+                [videoId]: {
+                  ...state.videoStates[videoId],
+                  isScrollTriggered: isTriggered,
+                  isPlaying: isTriggered // Direkt isPlaying setzen
+                }
+              }
+            };
+            console.log('VideoStore: New state after scroll trigger:', newState);
+            return newState;
+          });
+        },
+
         play: (videoId) => {
           const videoState = get().videoStates[videoId];
+          const { isInitialized } = useBaseStore.getState();
           
-          // Nur abspielen, wenn das Video bereit ist
-          if (!videoState.isReady) {
-            get().setShouldAutoplay(videoId, true);
+          console.log(`VideoStore: play attempt`, {
+            videoId,
+            videoState,
+            isInitialized
+          });
+          
+          // Nicht abspielen wenn:
+          // 1. Video nicht bereit
+          // 2. Store nicht initialisiert
+          if (!videoState.isReady || !isInitialized) {
+            console.log('VideoStore: Play conditions not met');
             return;
           }
 
           const { markSceneAsActive } = useSceneStore.getState();
 
-          set((state) => ({
-            activeVideoId: videoId,
-            videoStates: {
-              ...state.videoStates,
-              [videoId]: {
-                ...state.videoStates[videoId],
-                isPlaying: true,
-                shouldAutoplay: false
+          set((state) => {
+            const newState = {
+              activeVideoId: videoId,
+              videoStates: {
+                ...state.videoStates,
+                [videoId]: {
+                  ...state.videoStates[videoId],
+                  isPlaying: true,
+                  shouldAutoplay: false,
+                  isComplete: false
+                }
               }
-            }
-          }));
+            };
+            console.log('VideoStore: New state after play:', newState);
+            return newState;
+          });
 
           markSceneAsActive(videoId);
         },
@@ -135,20 +213,27 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
 
         markVideoAsReady: (videoId) => {
           const { markSceneAsReady } = useSceneStore.getState();
-          const currentState = get();
-          const videoState = currentState.videoStates[videoId];
           
-          set((state) => ({
-            videoStates: {
-              ...state.videoStates,
-              [videoId]: {
-                ...state.videoStates[videoId],
-                isReady: true,
-                // Starte Video nur, wenn shouldAutoplay gesetzt ist
-                isPlaying: videoState.shouldAutoplay
+          console.log(`VideoStore: markVideoAsReady`, {
+            videoId,
+            currentState: get().videoStates[videoId]
+          });
+          
+          set((state) => {
+            const newState = {
+              videoStates: {
+                ...state.videoStates,
+                [videoId]: {
+                  ...state.videoStates[videoId],
+                  isReady: true,
+                  isPlaying: false,
+                  isScrollTriggered: false
+                }
               }
-            }
-          }));
+            };
+            console.log('VideoStore: New state after ready:', newState);
+            return newState;
+          });
           
           markSceneAsReady(videoId);
         },
@@ -163,7 +248,8 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
                 ...state.videoStates[videoId],
                 isComplete: true,
                 isPlaying: false,
-                shouldAutoplay: false
+                shouldAutoplay: false,
+                isScrollTriggered: false // Reset scroll trigger wenn Video fertig ist
               }
             }
           }));
@@ -238,11 +324,6 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
               }
             }
           }));
-        },
-
-        initialize: () => {
-          if (get().isInitialized) return;
-          set({ isInitialized: true });
         }
       })),
       {
@@ -250,7 +331,8 @@ export const useVideoStore = create<GlobalVideoState & VideoActions>()(
         partialize: (state) => ({
           activeVideoId: state.activeVideoId,
           videoStates: state.videoStates,
-          isInitialized: state.isInitialized
+          isInitialized: state.isInitialized,
+          isScrollTriggered: state.videoStates['video-scene'].isScrollTriggered
         })
       }
     )
@@ -277,4 +359,7 @@ export const useIsVideoMuted = (videoId: VideoId): boolean =>
   useVideoStore((state) => state.videoStates[videoId].isMuted);
 
 export const useShouldVideoAutoplay = (videoId: VideoId): boolean =>
-  useVideoStore((state) => state.videoStates[videoId].shouldAutoplay); 
+  useVideoStore((state) => state.videoStates[videoId].shouldAutoplay);
+
+export const useIsScrollTriggered = (videoId: VideoId): boolean =>
+  useVideoStore((state) => state.videoStates[videoId].isScrollTriggered); 
