@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
 import { useSceneStore } from '../stores/sceneStore';
 
-gsap.registerPlugin(ScrollTrigger);
+gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 
 // Basis-Interface für alle Szenen
 export interface BaseSceneProps {
@@ -39,6 +40,7 @@ interface WithSceneControlOptions {
   cleanupScene?: () => void;
   handleScroll?: boolean;
   handleTouch?: boolean;
+  snapIntoPlace?: boolean;
 }
 
 export const withSceneControl = <P extends BaseSceneProps>(
@@ -58,7 +60,7 @@ export const withSceneControl = <P extends BaseSceneProps>(
     const controllerRef = useRef<SceneController | null>(null);
     const isPlayingRef = useRef<boolean>(false);
     const timelineRef = useRef<gsap.core.Timeline | null>(null);
-    const { isScrolling, setCurrentScene } = useSceneStore();
+    const { isScrolling, setIsScrolling, setCurrentScene } = useSceneStore();
 
     // Scene Controller Setup
     useEffect(() => {
@@ -90,58 +92,81 @@ export const withSceneControl = <P extends BaseSceneProps>(
 
       controllerRef.current = controller;
 
-      // Setup der Szene mit dem Controller und hole ScrollTrigger Callbacks
       let scrollCallbacks: ScrollCallbacks | void;
       if (options.setupScene) {
         scrollCallbacks = options.setupScene(props, controller);
       }
 
-      // ScrollTrigger Setup wenn handleScroll aktiviert ist
-      if (options.handleScroll && containerRef.current) {
+      // ScrollTrigger Setup nur wenn handleScroll UND snapIntoPlace aktiv sind
+      if (options.handleScroll && options.snapIntoPlace && containerRef.current) {
         const trigger = ScrollTrigger.create({
           trigger: containerRef.current,
           start: scrollTriggerOptions.start || 'top center',
           end: scrollTriggerOptions.end || 'bottom center',
           markers: scrollTriggerOptions.markers || false,
           onEnter: () => {
-            if (!isScrolling) {
-              setCurrentScene(id);
-              if (scrollCallbacks?.onEnter) {
-                scrollCallbacks.onEnter();
-              }
-              setTimeout(() => {
-                if (!isScrolling) {
-                  controller.play();
+            setCurrentScene(id);
+            if (scrollCallbacks?.onEnter) {
+              scrollCallbacks.onEnter();
+            }
+            
+            // Snap nur wenn snapIntoPlace true ist
+            if (options.snapIntoPlace && containerRef.current) {
+              const element = containerRef.current;
+              const elementRect = element.getBoundingClientRect();
+              const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+              const targetY = scrollTop + elementRect.top;
+
+              gsap.to(window, {
+                duration: 0.5,
+                scrollTo: { y: targetY, autoKill: true },
+                ease: "power2.inOut",
+                onComplete: () => {
+                  if (!isScrolling) {
+                    controller.play();
+                  }
                 }
-              }, 100);
+              });
             }
           },
           onLeave: () => {
-            if (!isScrolling && isPlayingRef.current) {
-              if (scrollCallbacks?.onLeave) {
-                scrollCallbacks.onLeave();
-              }
+            if (scrollCallbacks?.onLeave) {
+              scrollCallbacks.onLeave();
+            }
+            if (isPlayingRef.current) {
               controller.pause();
             }
           },
           onEnterBack: () => {
-            if (!isScrolling) {
-              setCurrentScene(id);
-              if (scrollCallbacks?.onEnterBack) {
-                scrollCallbacks.onEnterBack();
-              }
-              setTimeout(() => {
-                if (!isScrolling) {
-                  controller.play();
+            setCurrentScene(id);
+            if (scrollCallbacks?.onEnterBack) {
+              scrollCallbacks.onEnterBack();
+            }
+            
+            // Snap nur wenn snapIntoPlace true ist
+            if (options.snapIntoPlace && containerRef.current) {
+              const element = containerRef.current;
+              const elementRect = element.getBoundingClientRect();
+              const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+              const targetY = scrollTop + elementRect.top;
+
+              gsap.to(window, {
+                duration: 0.5,
+                scrollTo: { y: targetY, autoKill: true },
+                ease: "power2.inOut",
+                onComplete: () => {
+                  if (!isScrolling) {
+                    controller.play();
+                  }
                 }
-              }, 100);
+              });
             }
           },
           onLeaveBack: () => {
-            if (!isScrolling && isPlayingRef.current) {
-              if (scrollCallbacks?.onLeaveBack) {
-                scrollCallbacks.onLeaveBack();
-              }
+            if (scrollCallbacks?.onLeaveBack) {
+              scrollCallbacks.onLeaveBack();
+            }
+            if (isPlayingRef.current) {
               controller.pause();
             }
           }

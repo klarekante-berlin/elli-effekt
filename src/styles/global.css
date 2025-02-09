@@ -80,4 +80,18 @@ p {
   h2 {
     font-size: 2.75rem;
   }
+}
+
+/* Deaktiviere Lenis smooth scrolling für die Avocado-Szene */
+.lenis.lenis-avocado {
+  scroll-snap-type: none;
+  scroll-behavior: auto;
+}
+
+.lenis.lenis-avocado.lenis-smooth {
+  scroll-behavior: auto;
+}
+
+.lenis.lenis-avocado.lenis-scrolling {
+  scroll-behavior: auto;
 } 

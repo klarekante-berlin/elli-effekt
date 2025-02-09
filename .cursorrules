@@ -1,408 +1,417 @@
-# Elli-Effekt Projekt Entwicklungsrichtlinien
-# Ein umfassender Leitfaden für die Entwicklung mit React, TypeScript, GSAP und Web Core Vitals
+# Elli-Effekt Project Development Guidelines 2.0
+# A comprehensive guide for development with React, TypeScript, GSAP, Zustand, and Web Core Vitals
 
-# Entwicklungsphilosophie
-- Clean Code und Wartbarkeit priorisieren
-- Performance-First Ansatz mit Web Core Vitals
-- Komponenten-getriebene Entwicklung
-- Barrierefreiheit als Grundprinzip
-- Mobile-First und Responsive Design
+# 1. Core Development Philosophy
+- Clean Code and maintainability are top priorities
+- Performance-First approach with Web Core Vitals
+- Component-driven development
+- Accessibility as a fundamental principle
+- Mobile-First and Responsive Design
+- Atomic Design principles
 
-# Projektstruktur
-Verzeichnisstruktur
-- src/
-  - components/     # Wiederverwendbare UI-Komponenten
-  - styles/        # CSS Module und globale Styles
-  - hooks/         # Custom React Hooks
-  - types/         # TypeScript Definitionen
-  - assets/        # Statische Assets
-  - sections/      # Seitenspezifische Komponenten
-  - transciption_data/ # Transkriptionsdaten
+# 2. Project Structure
+src/
+  ├── components/        # Reusable UI components
+  │   ├── atoms/        # Basic UI elements
+  │   ├── molecules/    # Composite UI elements
+  │   ├── organisms/    # Complex UI components
+  │   └── templates/    # Page layouts
+  ├── scenes/           # Main application scenes
+  ├── stores/           # State store definitions
+  ├── styles/           # CSS modules and global styles
+  ├── hooks/            # Custom React hooks
+  ├── types/            # TypeScript definitions
+  ├── utils/            # Helper functions
+  ├── assets/           # Static assets
+  │   ├── videos/       # Video files
+  │   ├── images/       # Image files
+  │   └── svg/          # SVG assets
+  └── transcription_data/ # Transcription data
 
-# Code-Style
-Allgemeine Regeln
-- Einrückung: 2 Spaces
-- Einfache Anführungszeichen für Strings
-- Semikolons am Ende jeder Anweisung
-- Maximale Zeilenlänge: 100 Zeichen
-- TypeScript strict mode aktiviert
-- ESLint und Prettier für Codeformatierung
+# 3. State Management with Zustand
+@Zustand @React
 
-# Namenskonventionen
-Komponenten und Dateien
-- Komponenten: PascalCase (VideoScene.tsx)
-- Styles: ComponentName.css
-- Hooks: useHookName
-- Types/Interfaces: IPascalCase
-- CSS-Klassen: kebab-case
+## Chain of Thought for Store Development
+1. Store Planning
+   - What data needs to be stored?
+   - Which components need access?
+   - How frequent are updates expected?
+   - What initialization logic is needed?
 
-# React & TypeScript Best Practices
-Komponenten
-- Funktionale Komponenten mit TypeScript
-- Props-Interfaces für jede Komponente
-- Explicit Return Types
-- Proper Event Typing
-- Memoization für Performance-kritische Komponenten
+2. Store Definition
+   - Define TypeScript interface
+   - Set initial state
+   - Plan actions/mutations
+   - Consider loading states
 
-# GSAP Animation Standards
-GSAP React Integration
-- Import GSAP als: import gsap from 'gsap'
-- Plugins importieren: import { ScrollTrigger, ScrollSmoother } from 'gsap/all'
-- Plugins registrieren: gsap.registerPlugin(ScrollTrigger, ScrollSmoother)
-- useGSAP Hook für React-Integration verwenden
-- Cleanup durch return () => context.revert()
+3. Store Implementation
+   - Create Zustand store
+   - Define selectors
+   - Implement performance optimizations
+   - Implement error handling
 
-GSAP Hooks und Komponenten
-- useGSAP für Animationen innerhalb von Komponenten
-- useLayoutEffect für initiale Animationen
-- useRef für DOM-Referenzen
-- useIsomorphicLayoutEffect für SSR-Kompatibilität
+4. Store Integration
+   - Connect components
+   - Implement subscribe logic
+   - Ensure cleanup
+   - Test initialization logic
 
-Animation Best Practices
-- Timeline-basierte Animationen bevorzugen
-- Matchmedia für responsive Animationen
-- Performance-Optimierung durch will-change
-- GPU-beschleunigte Eigenschaften bevorzugen (transform, opacity)
-- ScrollTrigger für Scroll-basierte Animationen
-- ScrollSmoother für Smooth Scrolling
-- GSDevTools nur in Entwicklungsumgebung
-
-Beispiel-Komponente mit GSAP React:
-```tsx
-import { useRef } from 'react'
-import { useGSAP } from '@gsap/react'
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import styles from './ComponentName.css'
-
-gsap.registerPlugin(ScrollTrigger)
-
-interface ComponentNameProps {
-  // Props Interface
+## Store Best Practices
+```typescript
+// Store Definition with Initialization
+interface IStore {
+  data: TData;
+  isLoading: boolean;
+  error: Error | null;
+  isInitialized: boolean;
 }
 
-export const ComponentName: FC<ComponentNameProps> = ({ props }) => {
-  const container = useRef<HTMLDivElement>(null)
-  const element = useRef<HTMLDivElement>(null)
+const useStore = create<IStore>((set) => ({
+  data: initialData,
+  isLoading: false,
+  error: null,
+  isInitialized: false,
+
+  initialize: async () => {
+    if (get().isInitialized) return;
+    
+    set({ isLoading: true });
+    try {
+      const data = await fetchData();
+      set({ data, isInitialized: true, isLoading: false });
+    } catch (error) {
+      set({ error, isLoading: false });
+    }
+  },
+
+  // Actions...
+}));
+
+// Component Integration
+const Component: FC = () => {
+  const { isInitialized, initialize, isLoading, error } = useStore();
+
+  useEffect(() => {
+    initialize();
+  }, []);
+
+  if (!isInitialized) return <LoadingState />;
+  if (error) return <ErrorState error={error} />;
+  
+  return <Content />;
+};
+```
+
+## Performance Optimization
+- Selective updates with immer/produce
+- Shallow/Deep equality checks
+- Memoization for complex selectors
+- Batching for multiple updates
+- DevTools for debugging
+
+# 4. GSAP Animation Standards
+@GSAP @React
+
+## Chain of Thought for Animations
+1. Animation Planning
+   - Which elements need animation?
+   - What triggers the animation?
+   - How complex is the timeline?
+   - What are the performance requirements?
+
+2. Implementation
+   - Set up GSAP
+   - Create timeline
+   - Optimize performance
+   - Ensure cleanup
+
+## Animation Best Practices
+```typescript
+// GSAP Setup with React
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
+
+const AnimationComponent: FC = () => {
+  const container = useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
-    // GSAP Animationen hier
-    gsap.to(element.current, {
-      x: 100,
+    const timeline = gsap.timeline({
       scrollTrigger: {
-        trigger: element.current,
+        trigger: container.current,
         start: 'top center',
         end: 'bottom center',
         scrub: true
       }
-    })
-  }, { scope: container }) // scope für automatisches Cleanup
+    });
 
-  return (
-    <div ref={container} className={styles.container}>
-      <div ref={element} className={styles.element}>
-        {/* JSX */}
-      </div>
-    </div>
-  )
-}
+    timeline
+      .to(/* Animation */);
+
+    return () => timeline.kill();
+  }, { scope: container });
+
+  return <div ref={container}>{/* Content */}</div>;
+};
 ```
 
-GSAP Timeline Management
-- Timelines für komplexe Animationen
-- Labels für bessere Organisation
-- Verschachtelte Timelines für modulare Animation
-- Export von Timelines für wiederverwendbare Animationen
+## Performance Optimization
+- Use will-change only for active animations
+- Prioritize transform and opacity
+- Batch animations in timelines
+- Use RequestAnimationFrame for custom animations
+- Utilize GPU-accelerated properties
 
-Performance Optimierung
-- Vermeidung von Layout Thrashing
-- Batch-Animationen in Timelines
-- Force3D: true für bessere Performance
-- Lazy Loading von GSAP Plugins
-- RequestAnimationFrame für Custom Animations
+# 5. Component Standards
+@React
 
-# Responsive Design
-Breakpoints
-- mobile: 320px - 480px
-- tablet: 481px - 768px
-- laptop: 769px - 1024px
-- desktop: 1280px+
-
-Media Queries
-- Mobile-First Approach
-- Flexbox/Grid für Layouts
-- Relative Einheiten (rem, em, vh, vw)
-- Fluid Typography
-
-# Web Core Vitals
-Performance Metriken
-- LCP (Largest Contentful Paint) < 2.5s
-- FID (First Input Delay) < 100ms
-- CLS (Cumulative Layout Shift) < 0.1
-
-Optimierungen
-- Lazy Loading für Bilder und Komponenten
-- Code-Splitting nach Routes
-- Asset-Optimierung
-- Preloading kritischer Assets
-- Performance Monitoring
-
-# Komponenten-Struktur
-```tsx
-import { FC, useRef, useLayoutEffect } from 'react'
-import gsap from 'gsap'
-import styles from './ComponentName.css'
-
-interface ComponentNameProps {
-  // Props Interface
+## Component Structure
+```typescript
+interface IComponentProps {
+  // Props with TypeScript interface
 }
 
-export const ComponentName: FC<ComponentNameProps> = ({ props }) => {
-  const elementRef = useRef<HTMLDivElement>(null)
+export const Component: FC<IComponentProps> = memo(({ props }) => {
+  // Hooks at the beginning
+  const [state, setState] = useState<TState>();
+  const memoizedValue = useMemo(() => computeValue(), [deps]);
+  const memoizedCallback = useCallback(() => handleEvent(), [deps]);
 
-  useLayoutEffect(() => {
-    const ctx = gsap.context(() => {
-      // GSAP Animationen
-    }, elementRef)
+  // Event handlers
+  const handleEvent = () => {
+    // Implementation
+  };
 
-    return () => ctx.revert()
-  }, [])
-
+  // Render
   return (
-    <div ref={elementRef} className={styles.container}>
+    <div>
       {/* JSX */}
     </div>
-  )
-}
+  );
+});
 ```
 
-# Testing
-- Jest und React Testing Library
-- Komponenten-Tests
-- Animation-Tests
-- Accessibility Tests
-- Performance Tests
+## Best Practices
+- Functional components with TypeScript
+- Props interfaces for each component
+- Explicit return types
+- Memoization for performance
+- Proper cleanup in useEffect
+- Implement error boundaries
 
-# Dokumentation
-- JSDoc für Komponenten und Funktionen
-- README.md für jede Komponente
-- Storybook für UI-Dokumentation
-- Performance-Dokumentation
-- Animation-Dokumentation
+# 6. Performance Standards
+## Web Core Vitals
+- LCP < 2.5s
+- FID < 100ms
+- CLS < 0.1
 
-# Smooth Scrolling mit Lenis
-Lenis React Integration
-- Installation: npm i lenis
-- Import: import { ReactLenis, useLenis } from 'lenis/react'
-- Kontext-basierte Implementierung für React
-- Automatische Instanz-Verwaltung durch Komponenten-Wrapper
+## Optimizations
+- Code splitting
+- Lazy loading
+- Asset optimization
+- Bundle size monitoring
+- Performance monitoring
 
-Basis Setup mit React
-```tsx
-import { ReactLenis, useLenis } from 'lenis/react'
+# 7. Testing Standards
+## Unit Tests
+```typescript
+describe('Component', () => {
+  it('should render correctly', () => {
+    render(<Component />);
+    expect(screen.getByRole('button')).toBeInTheDocument();
+  });
 
-function App() {
-  const lenis = useLenis(({ scroll }) => {
-    // Scroll Event Handling
-  })
-
-  return (
-    <ReactLenis root>
-      {/* content */}
-    </ReactLenis>
-  )
-}
+  it('should handle user interactions', async () => {
+    render(<Component />);
+    await userEvent.click(screen.getByRole('button'));
+    expect(handleClick).toHaveBeenCalled();
+  });
+});
 ```
 
-Lenis React Props
-- options: Lenis Konfigurationsoptionen
-- root: Lenis wird auf dem <html> Element initialisiert (Default: false)
-- className: Klassenname für den Wrapper (Default: '')
+## Test Coverage
+- Unit tests: > 80%
+- Integration tests
+- E2E tests
+- Performance tests
+- A11y tests
 
-Lenis Hooks
-- useLenis Hook gibt die Lenis-Instanz zurück
-- Hook Parameter:
-  - callback: Funktion die bei Scroll-Events aufgerufen wird
-  - deps: Trigger callback bei Änderungen
-  - priority: Steuerung der Callback-Ausführungsreihenfolge
+# 8. Code Style
+## General
+- Indentation: 2 spaces
+- Maximum line length: 100
+- Semicolons required
+- Single quotes for strings
 
-# Lenis + GSAP Integration
-Custom RAF Loop Setup:
-```tsx
-import { ReactLenis } from 'lenis/react'
-import { useEffect, useRef } from 'react'
+## Naming
+- Components: PascalCase
+- Functions: camelCase
+- CSS classes: kebab-case
+- Interfaces: IPascalCase
+- Types: TPascalCase
 
-function App() {
-  const lenisRef = useRef()
+# 9. Development Workflow
+## Chain of Thought
+1. Requirements analysis
+2. Implementation planning
+3. Development (TDD/BDD)
+4. Testing & QA
+5. Code review
+6. Deployment
+
+## Review Checklist
+- Code quality (TypeScript, ESLint, Prettier)
+- Performance (Bundle size, Render, Animation)
+- Tests (Coverage, Edge cases)
+- Documentation (JSDoc, README, API docs)
+
+# 10. Store Management and Zustand
+@Zustand @React @TypeScript
+
+## Store Architecture
+1. Base Store (baseStore)
+   - Global app states
+   - Scroll management
+   - Animation flags
+   - Persistence configuration
+
+2. Scene Store (sceneStore)
+   - Scene navigation
+   - Scene states
+   - Transitions
+   - Scene types and validation
+
+3. Video Store (videoStore)
+   - Video control
+   - Playback states
+   - Video synchronization
+   - Scene integration
+
+## Store Development Chain of Thought
+1. Requirements Analysis
+   - Which components access the store?
+   - Which scenes are affected?
+   - What states need to be managed?
+   - What actions are needed?
+
+2. Interface Definition
+   - Define state interfaces
+   - Define action interfaces
+   - Set up types and enums
+   - Implement validations
+
+3. Store Implementation
+   - Configure middleware
+   - Define selectors
+   - Implement actions
+   - Set up persistence
+
+4. Component Integration
+   - Integrate store hooks in components
+   - Implement scene-specific logic
+   - Perform performance optimizations
+   - Ensure cleanup
+
+## Store Best Practices
+```typescript
+// Store Definition
+interface IStore {
+  // State
+  state: TState;
+  isLoading: boolean;
+  error: Error | null;
+  
+  // Metadata
+  lastUpdated: number;
+  version: string;
+  
+  // Actions
+  initialize: () => Promise<void>;
+  update: (data: Partial<TState>) => void;
+  reset: () => void;
+}
+
+// Store Creation
+export const useStore = create<IStore>()(
+  devtools(
+    persist(
+      (set, get) => ({
+        // Implementation
+      }),
+      {
+        name: 'store-name',
+        version: 1,
+        partialize: (state) => ({
+          // Persisted fields
+        })
+      }
+    )
+  )
+);
+
+// Component Integration
+const Component: FC = () => {
+  const store = useStore();
   
   useEffect(() => {
-    function update(time) {
-      lenisRef.current?.lenis?.raf(time)
-    }
+    // Initialization
+    return () => {
+      // Cleanup
+    };
+  }, []);
   
-    const rafId = requestAnimationFrame(update)
-  
-    return () => cancelAnimationFrame(rafId)
-  }, [])
-  
-  return (
-    <ReactLenis options={{ autoRaf: false }} ref={lenisRef}>
-      {/* content */}
-    </ReactLenis>
-  )
-}
+  return <Content />;
+};
 ```
 
-GSAP Integration Setup:
-```tsx
-import gsap from 'gsap'
-import { ReactLenis } from 'lenis/react'
-import { useEffect, useRef } from 'react'
+## Performance Optimization
+- Selective re-renders with selectors
+- Memoization for complex calculations
+- Batching for multiple updates
+- Lazy loading for large stores
 
-function App() {
-  const lenisRef = useRef()
+## Store-Scene Integration
+```typescript
+// Scene-specific store logic
+interface SceneStore extends BaseStore {
+  // Scene states
+  sceneStates: Record<SceneId, SceneState>;
+  
+  // Scene actions
+  enterScene: (sceneId: SceneId) => void;
+  exitScene: (sceneId: SceneId) => void;
+  
+  // Transitions
+  transitionTo: (targetScene: SceneId) => void;
+}
+
+// Scene component with store integration
+const Scene: FC<SceneProps> = ({ id }) => {
+  const { 
+    sceneState,
+    enterScene,
+    exitScene
+  } = useSceneStore();
   
   useEffect(() => {
-    function update(time) {
-      lenisRef.current?.lenis?.raf(time * 1000)
-    }
+    enterScene(id);
+    return () => exitScene(id);
+  }, [id]);
   
-    gsap.ticker.add(update)
-  
-    return () => gsap.ticker.remove(update)
-  }, [])
-  
-  return (
-    <ReactLenis options={{ autoRaf: false }} ref={lenisRef}>
-      {/* content */}
-    </ReactLenis>
-  )
-}
+  return <Content />;
+};
 ```
 
-Lenis Best Practices
-- Verwendung des Kontext-basierten Ansatzes
-- Proper Cleanup in useEffect
-- autoRaf: false bei Custom Animation Loops
-- Korrekte TypeScript Typisierung mit LenisRef
-- Performance Monitoring durch Scroll Events
+## Debugging and Testing
+- DevTools integration
+- Action logging
+- State snapshots
+- Automated tests
 
-# Video Integration mit React Player
-Video Setup
-- Installation: npm i react-player
-- Import: import ReactPlayer from 'react-player'
-- Video Assets: src/assets/videos/
-
-Video Komponenten Standards
-```tsx
-import ReactPlayer from 'react-player'
-import { useRef } from 'react'
-import styles from './VideoComponent.css'
-
-interface VideoComponentProps {
-  videoUrl: string
-  playing?: boolean
-  loop?: boolean
-  muted?: boolean
-  playbackRate?: number
-}
-
-export const VideoComponent: FC<VideoComponentProps> = ({
-  videoUrl,
-  playing = false,
-  loop = true,
-  muted = true,
-  playbackRate = 1,
-}) => {
-  const playerRef = useRef<ReactPlayer>(null)
-
-  return (
-    <div className={styles.playerWrapper}>
-      <ReactPlayer
-        ref={playerRef}
-        url={`${process.env.PUBLIC_URL}/assets/videos/${videoUrl}`}
-        className={styles.reactPlayer}
-        playing={playing}
-        loop={loop}
-        muted={muted}
-        playbackRate={playbackRate}
-        width="100%"
-        height="100%"
-        onReady={() => console.log('Video ready')}
-        onStart={() => console.log('Video started')}
-        onPause={() => console.log('Video paused')}
-        onEnded={() => console.log('Video ended')}
-        onError={(e) => console.error('Video error:', e)}
-      />
-    </div>
-  )
-}
-```
-
-Responsive Video Styling
-```css
-.playerWrapper {
-  position: relative;
-  padding-top: 56.25%; /* 16:9 Aspect Ratio */
-  background: #000;
-}
-
-.reactPlayer {
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-```
-
-React Player Best Practices
-- Immer useRef für Player-Instanz verwenden
-- Responsive Design durch Wrapper mit korrektem Aspect Ratio
-- Error Handling für alle Video Events
-- Lazy Loading für bessere Performance
-- Muted Autoplay für Mobile Support
-
-Video Performance Optimierung
-- Preload="auto" nur für kritische Videos
-- Lazy Loading für Videos below the fold
-- Korrekte Video-Kodierung (mp4, webm)
-- Responsive Sourcen für verschiedene Bildschirmgrößen
-- Video-Kompression für Web-Optimierung
-
-Video Controls und Interaktivität
-- Custom Controls für einheitliches Design
-- Keyboard Navigation Support
-- Progress Bar mit Preview
-- Volume Controls
-- Playback Speed Controls
-
-Video Event Handling
-```tsx
-<ReactPlayer
-  // ... andere Props
-  onProgress={({ played, playedSeconds, loaded, loadedSeconds }) => {
-    // Progress Handling
-  }}
-  onDuration={(duration) => {
-    // Duration Handling
-  }}
-  onBuffer={() => {
-    // Buffer Handling
-  }}
-  onSeek={(seconds) => {
-    // Seek Handling
-  }}
-/>
-```
-
-Player Methoden
-- playerRef.current?.seekTo(seconds)
-- playerRef.current?.getCurrentTime()
-- playerRef.current?.getDuration()
-- playerRef.current?.getSecondsLoaded()
-
-Accessibility
-- Aria Labels für Controls
-- Keyboard Navigation
-- Untertitel Support
-- Transkript Integration
-- Screen Reader Support
+## Error Handling
+- Define error states
+- Recovery strategies
+- User feedback
+- Logging and monitoring

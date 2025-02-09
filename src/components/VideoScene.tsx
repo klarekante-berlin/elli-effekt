@@ -1,16 +1,22 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactPlayer from 'react-player/lazy';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
 import videoFrame from '../assets/images/video_frame.png';
-import { useVideoStore } from '../stores/videoStore';
+import { 
+  useVideoStore,
+  useIsVideoPlaying,
+  useIsVideoMuted,
+  useVideoMetadata,
+  type VideoId
+} from '../stores/videoStore';
 import '../styles/VideoScene.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
 interface VideoSceneProps {
-  id: string;                    // Eindeutige ID für die Scene
+  id: VideoId;                   // Eindeutige ID für die Scene
   videoSource: string;           // Pfad zum Video
   isReadyToPlay?: boolean;       // Startet das Video automatisch nach Audio
   onComplete?: () => void;       // Callback wenn Video fertig ist
@@ -27,7 +33,7 @@ interface ReactPlayerInstance {
   getInternalPlayer: (key?: string) => any;
 }
 
-const VideoScene: React.FC<VideoSceneProps> = ({ 
+const VideoScene: React.FC<VideoSceneProps> = ({
   id,
   videoSource,
   isReadyToPlay = false,
@@ -41,37 +47,33 @@ const VideoScene: React.FC<VideoSceneProps> = ({
   const frameRef = useRef<HTMLImageElement>(null);
   const playerWrapperRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<ReactPlayerInstance>(null);
-  const [isMuted, setIsMuted] = React.useState(startMuted);
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
-  const [isVideoReady, setIsVideoReady] = React.useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Zustand Store
+  // Video Store Hooks
+  const isPlaying = useIsVideoPlaying(id);
+  const isMuted = useIsVideoMuted(id);
+  const metadata = useVideoMetadata(id);
   const {
-    isVideoPlaying,
-    isUserPaused,
-    playVideo,
-    pauseVideo,
-    setUserPaused,
-    setReadyToPlayFromAudio,
-    initializeVideo,
-    isVideoInitialized
+    play,
+    pause,
+    togglePlay,
+    setMuted,
+    toggleMuted,
+    updateMetadata,
+    markVideoAsReady,
+    markVideoAsComplete
   } = useVideoStore();
 
   // Initialisierung
   useEffect(() => {
     console.log(`Video ${id}: Mount`);
-    if (!isVideoInitialized(id)) {
-      console.log(`Video ${id}: Initialisiere`);
-      initializeVideo(id);
-      // Setze initial auf pausiert
-      setUserPaused(id, true);
-    }
-
+    
     return () => {
       console.log(`Video ${id}: Unmount`);
-      pauseVideo(id);
+      pause(id);
     };
-  }, [id]);
+  }, [id, pause]);
 
   // Touch-Event-Handler
   useEffect(() => {
@@ -116,28 +118,19 @@ const VideoScene: React.FC<VideoSceneProps> = ({
       end: "bottom 20%",
       onEnter: () => {
         console.log(`Video ${id}: Enter - Start Playing`);
-        setUserPaused(id, false); // Erlaube Autoplay beim Scrollen
-        playVideo(id);
+        play(id);
       },
       onLeave: () => {
         console.log(`Video ${id}: Leave - Pause`);
-        pauseVideo(id);
+        pause(id);
       },
       onEnterBack: () => {
         console.log(`Video ${id}: Enter Back - Start Playing`);
-        setUserPaused(id, false); // Erlaube Autoplay beim Scrollen
-        playVideo(id);
+        play(id);
       },
       onLeaveBack: () => {
         console.log(`Video ${id}: Leave Back - Pause`);
-        pauseVideo(id);
-      },
-      onUpdate: (self) => {
-        // Prüfe ob die Szene aktuell sichtbar ist
-        if (self.isActive && !isVideoPlaying(id) && !isUserPaused(id)) {
-          console.log(`Video ${id}: Scene visible - Start Playing`);
-          playVideo(id);
-        }
+        pause(id);
       }
     });
 
@@ -145,21 +138,21 @@ const VideoScene: React.FC<VideoSceneProps> = ({
       console.log(`Video ${id}: ScrollTrigger Cleanup`);
       trigger.kill();
     };
-  }, [id, isVideoReady]);
+  }, [id, isVideoReady, play, pause]);
 
-  // Effekt für isReadyToPlay (nach Audio) - nur für spezielle Audio-getriggerte Szenen
+  // Effekt für isReadyToPlay (nach Audio)
   useEffect(() => {
     if (isReadyToPlay) {
       console.log(`Video ${id}: Ready to play from audio`);
-      setReadyToPlayFromAudio(true);
-      setUserPaused(id, false); // Erlaube Autoplay nach Audio
+      play(id);
     }
-  }, [isReadyToPlay, id]);
+  }, [isReadyToPlay, id, play]);
 
   const handleVideoReady = () => {
     console.log(`Video ${id}: Ready`);
     setIsVideoReady(true);
-    // NICHT automatisch abspielen wenn bereit
+    markVideoAsReady(id);
+    setMuted(id, startMuted);
   };
 
   const handleVideoError = (error: unknown) => {
@@ -168,19 +161,13 @@ const VideoScene: React.FC<VideoSceneProps> = ({
   };
 
   const handlePlayPause = () => {
-    if (isVideoPlaying(id)) {
-      console.log(`Video ${id}: Manual Pause`);
-      pauseVideo(id);
-      setUserPaused(id, true);
-    } else {
-      console.log(`Video ${id}: Manual Play`);
-      setUserPaused(id, false);
-      playVideo(id);
-    }
+    console.log(`Video ${id}: Toggle Play/Pause`);
+    togglePlay(id);
   };
 
   const handleVolumeToggle = () => {
-    setIsMuted(!isMuted);
+    console.log(`Video ${id}: Toggle Volume`);
+    toggleMuted(id);
   };
 
   const handleFullscreenToggle = () => {
@@ -193,7 +180,21 @@ const VideoScene: React.FC<VideoSceneProps> = ({
     }
   };
 
+  const handleProgress = ({ played, playedSeconds }: { played: number, playedSeconds: number }) => {
+    updateMetadata(id, {
+      currentTime: playedSeconds
+    });
+  };
+
+  const handleDuration = (duration: number) => {
+    updateMetadata(id, {
+      duration
+    });
+  };
+
   const handleVideoEnd = () => {
+    console.log(`Video ${id}: Complete`);
+    markVideoAsComplete(id);
     if (onComplete) {
       onComplete();
     }
@@ -213,15 +214,19 @@ const VideoScene: React.FC<VideoSceneProps> = ({
           <ReactPlayer
             ref={playerRef}
             url={videoSource}
-            playing={isVideoPlaying(id)}
+            playing={isPlaying}
             loop={loop}
             muted={isMuted}
+            volume={metadata.volume}
+            playbackRate={metadata.playbackRate}
             width="100%"
             height="100%"
             playsinline
             className="react-player"
             onReady={handleVideoReady}
             onError={handleVideoError}
+            onProgress={handleProgress}
+            onDuration={handleDuration}
             onPlay={() => console.log(`Video ${id}: Actually started playing`)}
             onPause={() => console.log(`Video ${id}: Actually paused`)}
             onEnded={handleVideoEnd}
@@ -247,9 +252,9 @@ const VideoScene: React.FC<VideoSceneProps> = ({
             <button 
               onClick={handlePlayPause} 
               className="control-button"
-              aria-label={isVideoPlaying(id) ? 'Pause' : 'Play'}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
             >
-              {isVideoPlaying(id) ? <Pause size={24} /> : <Play size={24} />}
+              {isPlaying ? <Pause size={24} /> : <Play size={24} />}
             </button>
             <button 
               onClick={handleVolumeToggle} 
