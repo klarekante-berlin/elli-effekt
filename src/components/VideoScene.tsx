@@ -73,20 +73,24 @@ const VideoScene: React.FC<VideoSceneProps> = ({
   useEffect(() => {
     console.log(`Video ${id}: Mount`);
     
-    // Initialisiere den Store und setze alle States zurück
+    // Initialisiere den Store
     initialize();
-    
-    // Explizit alle States zurücksetzen
-    setScrollTriggered(id, false);
-    pause(id);
-    setMuted(id, startMuted);
     
     return () => {
       console.log(`Video ${id}: Unmount`);
-      setScrollTriggered(id, false);
-      pause(id);
+      if (isVideoReady) {
+        setScrollTriggered(id, false);
+        pause(id);
+      }
     };
-  }, [id, initialize, setScrollTriggered, pause, setMuted, startMuted]);
+  }, [id, initialize, setScrollTriggered, pause, isVideoReady]);
+
+  // Separate useEffect für initiale States
+  useEffect(() => {
+    if (isVideoReady) {
+      setMuted(id, startMuted);
+    }
+  }, [id, setMuted, startMuted, isVideoReady]);
 
   // Touch-Event-Handler
   useEffect(() => {
@@ -139,27 +143,35 @@ const VideoScene: React.FC<VideoSceneProps> = ({
       scrub: false,
       onEnter: () => {
         console.log(`Video ${id}: Enter - Attempting to play`);
-        requestAnimationFrame(() => {
-          setScrollTriggered(id, true);
-        });
+        if (isVideoReady) {
+          requestAnimationFrame(() => {
+            setScrollTriggered(id, true);
+          });
+        }
       },
       onLeave: () => {
         console.log(`Video ${id}: Leave - Pausing`);
-        requestAnimationFrame(() => {
-          setScrollTriggered(id, false);
-        });
+        if (isVideoReady) {
+          requestAnimationFrame(() => {
+            setScrollTriggered(id, false);
+          });
+        }
       },
       onEnterBack: () => {
         console.log(`Video ${id}: Enter Back - Attempting to resume`);
-        requestAnimationFrame(() => {
-          setScrollTriggered(id, true);
-        });
+        if (isVideoReady) {
+          requestAnimationFrame(() => {
+            setScrollTriggered(id, true);
+          });
+        }
       },
       onLeaveBack: () => {
         console.log(`Video ${id}: Leave Back - Pausing`);
-        requestAnimationFrame(() => {
-          setScrollTriggered(id, false);
-        });
+        if (isVideoReady) {
+          requestAnimationFrame(() => {
+            setScrollTriggered(id, false);
+          });
+        }
       }
     });
 
@@ -254,7 +266,7 @@ const VideoScene: React.FC<VideoSceneProps> = ({
           <ReactPlayer
             ref={playerRef}
             url={videoSource}
-            playing={isPlaying && isScrollTriggered}
+            playing={isPlaying}
             loop={loop}
             muted={isMuted}
             volume={metadata.volume}

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools, persist, subscribeWithSelector } from 'zustand/middleware';
 import { useBaseStore } from './baseStore';
+import { useScrollStore } from './scrollStore';
 
 
 export type SceneId = 
@@ -103,11 +104,14 @@ export const useSceneStore = create<SceneState & SceneActions>()(
           if (!sceneId) return;
           
           const { setIsScrolling } = useBaseStore.getState();
+          const { setSnappingEnabled } = useScrollStore.getState();
           const currentState = get();
           const targetScene = currentState.sceneStates[sceneId];
 
           if (!targetScene) return;
 
+          // Setze Snapping basierend auf Scene-Konfiguration
+          setSnappingEnabled(targetScene.requiresSnapping);
           
           // Setze Animation-Status
           if (targetScene.isAnimated) {
@@ -158,8 +162,10 @@ export const useSceneStore = create<SceneState & SceneActions>()(
 
           // Update global states
           const { setIsAnimationScene } = useBaseStore.getState();
+          const { setSnappingEnabled } = useScrollStore.getState();
           
           setIsAnimationScene(targetScene.isAnimated);
+          setSnappingEnabled(targetScene.requiresSnapping);
         },
 
         markSceneAsComplete: (sceneId) => {
@@ -247,6 +253,7 @@ export const useSceneStore = create<SceneState & SceneActions>()(
           // Update global snapping state if this is the current scene
           const currentScene = get().currentScene;
           if (currentScene === sceneId) {
+            useScrollStore.getState().setSnappingEnabled(requiresSnapping);
           }
         },
 
