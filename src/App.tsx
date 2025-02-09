@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { ReactLenis, useLenis } from 'lenis/react';
 import type { LenisOptions } from '@studio-freight/lenis';
 import gsap from 'gsap';
@@ -33,7 +33,8 @@ const LENIS_CONFIG: LenisOptions = {
   wheelMultiplier: 1,
   touchMultiplier: 2,
   infinite: false,
-  syncTouch: true
+  syncTouch: true,
+  lerp: 0.1
 };
 
 interface ScrollProps {
@@ -57,6 +58,71 @@ const App: React.FC = () => {
 
     initializeStores();
   }, [isInitialized, initialize, hydrate]);
+
+  // Lenis Hook
+  const lenis = useLenis(({ scroll, velocity }: ScrollProps) => {
+    // Verhindere Scrollen während Animation
+    if (isScrolling) {
+      return;
+    }
+
+    // Hohe Geschwindigkeit deaktiviert Snapping
+    if (Math.abs(velocity) > 0.8) {
+      return;
+    }
+  });
+
+  // Zentrale Scroll-Funktion für konsistentes Verhalten
+  const scrollToElement = useCallback((
+    targetElement: HTMLElement,
+    options: {
+      isAvocadoScene?: boolean;
+      preserveScrollPosition?: boolean;
+      withSnapping?: boolean;
+      onComplete?: () => void;
+    } = {}
+  ) => {
+    const {
+      isAvocadoScene = false,
+      preserveScrollPosition = false,
+      withSnapping = true,
+      onComplete
+    } = options;
+
+    if (!targetElement || !lenis) return;
+
+    setIsScrolling(true);
+
+    if (isAvocadoScene || preserveScrollPosition) {
+      // Direktes Scrollen ohne Animation
+      lenis.scrollTo(targetElement, {
+        offset: 0,
+        duration: 0,
+        immediate: true,
+        onComplete: () => {
+          setIsScrolling(false);
+          onComplete?.();
+        }
+      });
+    } else {
+      // Berechne optimale Scroll-Position für zentriertes Snapping
+      const elementRect = targetElement.getBoundingClientRect();
+      const offset = withSnapping ? window.innerHeight / 2 - elementRect.height / 2 : 0;
+
+      lenis.scrollTo(targetElement, {
+        offset,
+        duration: SCROLL_SETTINGS.duration,
+        easing: SCROLL_SETTINGS.easing,
+        immediate: false,
+        onComplete: () => {
+          setTimeout(() => {
+            setIsScrolling(false);
+            onComplete?.();
+          }, 100);
+        }
+      });
+    }
+  }, [lenis, setIsScrolling]);
 
   // ScrollTrigger Setup für Snapping
   useEffect(() => {
@@ -86,9 +152,13 @@ const App: React.FC = () => {
               progress: self.progress
             });
 
-            const { scrollToScene } = useSceneStore.getState();
-            setIsScrolling(true);
-            scrollToScene(sceneId);
+            scrollToElement(section as HTMLElement, {
+              withSnapping: true,
+              onComplete: () => {
+                const { scrollToScene } = useSceneStore.getState();
+                scrollToScene(sceneId);
+              }
+            });
           }
         }
       });
@@ -99,20 +169,7 @@ const App: React.FC = () => {
     return () => {
       triggers.forEach(trigger => trigger.kill());
     };
-  }, [isInitialized, sceneStates, isScrolling, setIsScrolling]);
-
-  // Lenis Scroll Handler (nur für Basis-Funktionalität)
-  const lenis = useLenis(({ scroll, velocity }: ScrollProps) => {
-    // Verhindere Scrollen während Animation
-    if (isScrolling) {
-      return;
-    }
-
-    // Hohe Geschwindigkeit deaktiviert Snapping
-    if (Math.abs(velocity) > 0.8) {
-      return;
-    }
-  });
+  }, [isInitialized, sceneStates, isScrolling, scrollToElement]);
 
   // Event Listener für Scene Navigation
   useEffect(() => {
@@ -129,47 +186,21 @@ const App: React.FC = () => {
         preserveScrollPosition
       });
 
-      setIsScrolling(true);
-      
-      const isAvocadoScene = sceneId === 'avocado-scene';
       const targetElement = document.querySelector(`#${sceneId}`) as HTMLElement;
-      
-      if (!targetElement) {
-        setIsScrolling(false);
-        return;
-      }
+      if (!targetElement) return;
 
-      if (isAvocadoScene || preserveScrollPosition) {
-        // Direktes Scrollen für Avocado oder wenn Position beibehalten werden soll
-        lenis.scrollTo(targetElement, {
-          offset: 0,
-          duration: 0,
-          immediate: true
-        });
-        setIsScrolling(false);
-      } else {
-        // GSAP Animation für alle anderen Szenen
-        gsap.to(window, {
-          duration: SCROLL_SETTINGS.duration,
-          scrollTo: {
-            y: targetElement,
-            autoKill: false
-          },
-          ease: SCROLL_SETTINGS.easing,
-          onComplete: () => {
-            setTimeout(() => {
-              setIsScrolling(false);
-            }, 100);
-          }
-        });
-      }
+      scrollToElement(targetElement, {
+        isAvocadoScene: sceneId === 'avocado-scene',
+        preserveScrollPosition,
+        withSnapping: enableSnapping
+      });
     };
 
     window.addEventListener('scrollToScene', handleScrollToScene as EventListener);
     return () => {
       window.removeEventListener('scrollToScene', handleScrollToScene as EventListener);
     };
-  }, [lenis, setIsScrolling]);
+  }, [lenis, scrollToElement]);
 
   const handleStart = () => {
     const { scrollToScene } = useSceneStore.getState();

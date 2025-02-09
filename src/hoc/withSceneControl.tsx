@@ -4,6 +4,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
 import { useSceneStore, SceneId } from '../stores/sceneStore';
 import { useInitializeStore } from '../hooks/useInitializeStore';
+import { useLenisScroll } from '../hooks/useLenisScroll';
+import { useScrollStore } from '../stores/scrollStore';
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 
@@ -61,7 +63,9 @@ export const withSceneControl = <P extends BaseSceneProps>(
     const controllerRef = useRef<SceneController | null>(null);
     const isPlayingRef = useRef<boolean>(false);
     const timelineRef = useRef<gsap.core.Timeline | null>(null);
+    const scrollCallbacksRef = useRef<ScrollCallbacks | void>(undefined);
     const isInitialized = useInitializeStore();
+    const lenisRef = useLenisScroll();
     const { 
       isScrolling, 
       setIsScrolling, 
@@ -70,6 +74,62 @@ export const withSceneControl = <P extends BaseSceneProps>(
       currentScene,
       previousScene 
     } = useSceneStore();
+    const { 
+      updateScrollState,
+      setScrollThreshold,
+      scrollThreshold 
+    } = useScrollStore();
+
+    // Zentrale Funktion für das Snapping
+    const handleSnapping = (direction: 'enter' | 'enterBack') => {
+      const targetScene = sceneStates[id];
+      const isScrollingFromAvocado = previousScene === 'avocado-scene';
+      const shouldSnap = direction === 'enter' 
+        ? targetScene?.requiresSnapping
+        : targetScene?.requiresSnapping || isScrollingFromAvocado;
+
+      console.log(`Scene ${id}: Handle Snapping`, {
+        direction,
+        shouldSnap,
+        isScrollingFromAvocado,
+        requiresSnapping: targetScene?.requiresSnapping,
+        isScrolling,
+        isInitialized
+      });
+
+      if (shouldSnap && containerRef.current && isInitialized && lenisRef.current?.lenis) {
+        const element = containerRef.current;
+        const lenis = lenisRef.current.lenis;
+
+        setIsScrolling(true);
+
+        const elementRect = element.getBoundingClientRect();
+        const offset = window.innerHeight / 2 - elementRect.height / 2;
+
+        console.log(`Scene ${id}: Snapping`, {
+          offset,
+          direction,
+          elementTop: elementRect.top
+        });
+
+        lenis.scrollTo(element, {
+          offset,
+          immediate: false,
+          duration: 1.2,
+          easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+          onComplete: () => {
+            console.log(`Scene ${id}: Snap Complete`);
+            setTimeout(() => {
+              setIsScrolling(false);
+              const shouldAutoStart = id !== 'video-scene' || (autoStart && !isScrolling);
+              if (shouldAutoStart && controllerRef.current) {
+                controllerRef.current.play();
+              }
+            }, 100);
+          }
+        });
+      }
+    };
 
     // Scene Controller Setup
     useEffect(() => {
@@ -107,167 +167,8 @@ export const withSceneControl = <P extends BaseSceneProps>(
 
       controllerRef.current = controller;
 
-      let scrollCallbacks: ScrollCallbacks | void;
       if (options.setupScene) {
-        scrollCallbacks = options.setupScene(props, controller);
-      }
-
-      // Zentrale Funktion für das Snapping
-      const handleSnapping = (direction: 'enter' | 'enterBack') => {
-        const targetScene = sceneStates[id];
-        const isScrollingFromAvocado = previousScene === 'avocado-scene';
-        const shouldSnap = direction === 'enter' 
-          ? targetScene?.requiresSnapping
-          : targetScene?.requiresSnapping || isScrollingFromAvocado;
-
-        console.log(`Scene ${id}: Handle Snapping`, {
-          direction,
-          shouldSnap,
-          isScrollingFromAvocado,
-          requiresSnapping: targetScene?.requiresSnapping,
-          isScrolling,
-          isInitialized
-        });
-
-        if (shouldSnap && containerRef.current && isInitialized) {
-          const element = containerRef.current;
-          const elementRect = element.getBoundingClientRect();
-          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-          const targetY = scrollTop + elementRect.top;
-
-          // Setze isScrolling während des Snappings
-          setIsScrolling(true);
-
-          // Berechne die Scroll-Richtung
-          const currentScroll = window.pageYOffset;
-          const scrollDirection = direction === 'enter' ? 'down' : 'up';
-          
-          console.log(`Scene ${id}: Snapping`, {
-            targetY,
-            currentScroll,
-            direction: scrollDirection,
-            elementTop: elementRect.top
-          });
-
-          // Stoppe alle laufenden GSAP Animationen
-          gsap.killTweensOf(window);
-
-          gsap.to(window, {
-            duration: 0.5,
-            scrollTo: { 
-              y: targetY, 
-              autoKill: false
-            },
-            ease: "power2.inOut",
-            onStart: () => {
-              console.log(`Scene ${id}: Snap Start`);
-            },
-            onUpdate: () => {
-              // Verhindere weiteres Scrollen während des Snappings
-              if (window.pageYOffset !== targetY) {
-                window.scrollTo(0, targetY);
-              }
-            },
-            onComplete: () => {
-              console.log(`Scene ${id}: Snap Complete`);
-              // Verzögere das Zurücksetzen des isScrolling-States
-              setTimeout(() => {
-                setIsScrolling(false);
-                // Nur automatisch starten, wenn es keine Video-Szene ist oder wenn autoStart aktiv ist
-                const shouldAutoStart = id !== 'video-scene' || (autoStart && !isScrolling);
-                if (shouldAutoStart) {
-                  controller.play();
-                }
-              }, 100);
-            }
-          });
-        }
-      };
-
-      // ScrollTrigger Setup
-      if (options.handleScroll && containerRef.current) {
-        const trigger = ScrollTrigger.create({
-          trigger: containerRef.current,
-          start: scrollTriggerOptions.start || 'top center',
-          end: scrollTriggerOptions.end || 'bottom center',
-          markers: scrollTriggerOptions.markers || false,
-          onEnter: () => {
-            console.log(`Scene ${id}: Enter`, {
-              isScrolling,
-              requiresSnapping: sceneStates[id]?.requiresSnapping,
-              previousScene,
-              isInitialized
-            });
-            
-            setCurrentScene(id);
-            if (scrollCallbacks?.onEnter) {
-              scrollCallbacks.onEnter();
-            }
-            
-            // Verzögere das Snapping leicht, um sicherzustellen, dass der ScrollTrigger-Event abgeschlossen ist
-            if (!isScrolling && isInitialized) {
-              requestAnimationFrame(() => {
-                handleSnapping('enter');
-              });
-            }
-          },
-          onLeave: () => {
-            console.log(`Scene ${id}: Leave`, {
-              isScrolling,
-              isPlaying: isPlayingRef.current,
-              isInitialized
-            });
-            
-            if (scrollCallbacks?.onLeave) {
-              scrollCallbacks.onLeave();
-            }
-            if (isPlayingRef.current) {
-              controller.pause();
-            }
-          },
-          onEnterBack: () => {
-            console.log(`Scene ${id}: Enter Back`, {
-              isScrolling,
-              requiresSnapping: sceneStates[id]?.requiresSnapping,
-              previousScene,
-              isInitialized
-            });
-            
-            setCurrentScene(id);
-            if (scrollCallbacks?.onEnterBack) {
-              scrollCallbacks.onEnterBack();
-            }
-            
-            // Verzögere das Snapping leicht, um sicherzustellen, dass der ScrollTrigger-Event abgeschlossen ist
-            if (!isScrolling && isInitialized) {
-              requestAnimationFrame(() => {
-                handleSnapping('enterBack');
-              });
-            }
-          },
-          onLeaveBack: () => {
-            console.log(`Scene ${id}: Leave Back`, {
-              isScrolling,
-              isPlaying: isPlayingRef.current,
-              isInitialized
-            });
-            
-            if (scrollCallbacks?.onLeaveBack) {
-              scrollCallbacks.onLeaveBack();
-            }
-            if (isPlayingRef.current) {
-              controller.pause();
-            }
-          }
-        });
-
-        return () => {
-          trigger.kill();
-          controller.cleanup();
-          if (options.cleanupScene) {
-            options.cleanupScene();
-          }
-        };
+        scrollCallbacksRef.current = options.setupScene(props, controller);
       }
 
       return () => {
@@ -276,22 +177,86 @@ export const withSceneControl = <P extends BaseSceneProps>(
           options.cleanupScene();
         }
       };
-    }, [isInitialized]); // Nur neu erstellen, wenn isInitialized sich ändert
+    }, [isInitialized]);
 
-    // Auto-Start wenn aktiviert (aber nicht für Video-Szenen beim ersten Laden)
+    // ScrollTrigger Setup
     useEffect(() => {
-      if (!isInitialized) return;
+      if (!isInitialized || !containerRef.current || !options.handleScroll) return;
 
-      const shouldAutoStart = id !== 'video-scene' || (autoStart && !isScrolling);
-      if (shouldAutoStart) {
-        console.log(`Scene ${id}: Auto Start`, {
-          isInitialized,
-          isScrolling,
-          autoStart
-        });
-        controllerRef.current?.play();
-      }
-    }, [autoStart, isScrolling, isInitialized]);
+      const lenis = lenisRef.current?.lenis;
+      if (!lenis) return;
+
+      ScrollTrigger.scrollerProxy(document.documentElement, {
+        scrollTop(value) {
+          if (arguments.length && value !== undefined) {
+            lenis.scrollTo(value, { immediate: true });
+          }
+          return lenis.scroll;
+        },
+        getBoundingClientRect() {
+          return {
+            top: 0,
+            left: 0,
+            width: window.innerWidth,
+            height: window.innerHeight
+          };
+        },
+        pinType: "transform"
+      });
+
+      const trigger = ScrollTrigger.create({
+        trigger: containerRef.current,
+        start: scrollTriggerOptions.start || 'top center',
+        end: scrollTriggerOptions.end || 'bottom center',
+        markers: scrollTriggerOptions.markers || false,
+        onEnter: () => {
+          console.log(`Scene ${id}: Enter`);
+          setCurrentScene(id);
+          if (scrollCallbacksRef.current?.onEnter) {
+            scrollCallbacksRef.current.onEnter();
+          }
+          if (!isScrolling && isInitialized) {
+            requestAnimationFrame(() => handleSnapping('enter'));
+          }
+        },
+        onLeave: () => {
+          console.log(`Scene ${id}: Leave`);
+          if (scrollCallbacksRef.current?.onLeave) {
+            scrollCallbacksRef.current.onLeave();
+          }
+          if (isPlayingRef.current && controllerRef.current) {
+            controllerRef.current.pause();
+          }
+        },
+        onEnterBack: () => {
+          console.log(`Scene ${id}: Enter Back`);
+          setCurrentScene(id);
+          if (scrollCallbacksRef.current?.onEnterBack) {
+            scrollCallbacksRef.current.onEnterBack();
+          }
+          if (!isScrolling && isInitialized) {
+            requestAnimationFrame(() => handleSnapping('enterBack'));
+          }
+        },
+        onLeaveBack: () => {
+          console.log(`Scene ${id}: Leave Back`);
+          if (scrollCallbacksRef.current?.onLeaveBack) {
+            scrollCallbacksRef.current.onLeaveBack();
+          }
+          if (isPlayingRef.current && controllerRef.current) {
+            controllerRef.current.pause();
+          }
+        }
+      });
+
+      ScrollTrigger.refresh();
+
+      return () => {
+        trigger.kill();
+        ScrollTrigger.scrollerProxy(document.documentElement, {});
+        ScrollTrigger.refresh();
+      };
+    }, [isInitialized, id, isScrolling]);
 
     // Touch Event Handler
     useEffect(() => {
@@ -311,10 +276,10 @@ export const withSceneControl = <P extends BaseSceneProps>(
         const touchDistance = Math.abs(touchEndY - touchStartY);
 
         if (touchDuration < 250 && touchDistance < 10) {
-          if (isPlayingRef.current) {
-            controllerRef.current?.pause();
-          } else {
-            controllerRef.current?.play();
+          if (isPlayingRef.current && controllerRef.current) {
+            controllerRef.current.pause();
+          } else if (controllerRef.current) {
+            controllerRef.current.play();
           }
         }
       };
@@ -327,7 +292,7 @@ export const withSceneControl = <P extends BaseSceneProps>(
         element.removeEventListener('touchstart', handleTouchStart);
         element.removeEventListener('touchend', handleTouchEnd);
       };
-    }, []);
+    }, [options.handleTouch]);
 
     return (
       <div ref={containerRef} className={`scene scene-${id}`}>
