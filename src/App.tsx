@@ -10,7 +10,6 @@ import BackgroundTexture from './components/BackgroundTexture';
 import Section from './components/Section';
 import { useSceneStore, SceneId } from './stores/sceneStore';
 import { useBaseStore } from './stores/baseStore';
-import { useVideoStore } from './stores/videoStore';
 import { useRootStore } from './stores/rootStore';
 import './styles/global.css';
 import videoSource from './assets/videos/WhatIf_Screen_002_Video.mp4';
@@ -37,7 +36,7 @@ interface ScrollProps {
 }
 
 const App: React.FC = () => {
-  const { isScrolling, setIsScrolling, isAnimationScene } = useBaseStore();
+  const { isScrolling, setIsScrolling } = useBaseStore();
   const { currentScene, sceneStates } = useSceneStore();
   const { isInitialized, initialize, hydrate } = useRootStore();
   
@@ -70,35 +69,23 @@ const App: React.FC = () => {
     }
 
     // Kein Snapping für:
-    // 1. Animations-Szenen
-    // 2. Hohe Scroll-Geschwindigkeit
-    // 3. Scroll-Animation-Szenen
-    // 4. Avocado-Szene
+    // 1. Hohe Scroll-Geschwindigkeit
+    // 2. Avocado-Szene
     const isAvocadoScene = currentScene === 'avocado-scene';
-    const isHighVelocity = Math.abs(velocity) > 0.5; // Erhöhter Schwellenwert
+    const isHighVelocity = Math.abs(velocity) > 0.8;
 
-    if (
-      isHighVelocity || 
-      currentSceneConfig.type === 'scroll' || 
-      currentSceneConfig.hasScrollTimeline ||
-      isAvocadoScene
-    ) {
+    if (isHighVelocity || isAvocadoScene) {
       if (isHighVelocity) {
         console.log('Scroll: High velocity detected, skipping snap', { velocity });
       } else if (isAvocadoScene) {
         console.log('Scroll: Avocado scene, snapping disabled');
-      } else {
-        console.log('Scroll: Scroll scene, snapping disabled', {
-          sceneType: currentSceneConfig.type,
-          hasTimeline: currentSceneConfig.hasScrollTimeline
-        });
       }
       return;
     }
 
     const sections = document.querySelectorAll<HTMLElement>('.section');
     const viewportHeight = window.innerHeight;
-    const scrollThreshold = viewportHeight * 0.2; // 20% der Viewport-Höhe
+    const scrollThreshold = viewportHeight * 0.3; // 30% der Viewport-Höhe
     
     // Finde die nächstgelegene Section
     let closestSection: HTMLElement | null = null;
@@ -117,16 +104,21 @@ const App: React.FC = () => {
       }
     });
     
-    // Wenn wir eine nahe Section gefunden haben und nicht genau darauf sind
-    if (closestSection && targetSceneId && Math.abs(minDistance) > 5 && lenis) {
+    // Wenn wir eine nahe Section gefunden haben
+    if (closestSection && targetSceneId && Math.abs(minDistance) > 5) {
       // Prüfe ob die Ziel-Szene Snapping erlaubt
       const sceneId = targetSceneId as Exclude<SceneId, null>;
-      const targetSceneConfig = sceneStates[sceneId]?.config;
+      const targetScene = sceneStates[sceneId];
       
-      if (!targetSceneConfig?.allowSnapping) {
+      // Überprüfe Snapping-Bedingungen
+      const shouldSnap = targetScene?.config?.allowSnapping && targetScene?.requiresSnapping;
+      
+      if (!shouldSnap) {
         console.log('Scroll: Target scene does not allow snapping', {
           scene: sceneId,
-          type: targetSceneConfig?.type
+          type: targetScene?.config?.type,
+          allowSnapping: targetScene?.config?.allowSnapping,
+          requiresSnapping: targetScene?.requiresSnapping
         });
         return;
       }
@@ -138,30 +130,19 @@ const App: React.FC = () => {
       }
 
       // Nur snappen, wenn wir nah genug an der Section sind
-      if (Math.abs(minDistance) > scrollThreshold) {
-        return;
+      if (Math.abs(minDistance) <= scrollThreshold) {
+        console.log('Scroll: Snapping to section', {
+          from: currentScene,
+          to: sceneId,
+          distance: minDistance,
+          threshold: scrollThreshold
+        });
+
+        // Nutze scrollToScene für einheitliches Verhalten
+        const { scrollToScene } = useSceneStore.getState();
+        setIsScrolling(true);
+        scrollToScene(sceneId);
       }
-
-      console.log('Scroll: Snapping to section', {
-        from: currentScene,
-        to: sceneId,
-        distance: minDistance,
-        threshold: scrollThreshold
-      });
-
-      setIsScrolling(true);
-      lenis.scrollTo(closestSection, {
-        offset: 0,
-        duration: 0.8,
-        easing: (t: number) => 1 - Math.pow(1 - t, 3), // Cubic ease-out
-        lock: true,
-        immediate: false
-      });
-      
-      // Reset isScrolling nach der Animation
-      setTimeout(() => {
-        setIsScrolling(false);
-      }, 800); // Entspricht der duration
     }
   });
 
