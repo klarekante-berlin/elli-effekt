@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { ReactLenis, useLenis } from 'lenis/react';
+import type { LenisOptions } from '@studio-freight/lenis';
 import WelcomePage from './components/WelcomePage';
 import AudioScene from './components/AudioScene';
 import VideoScene from './components/VideoScene';
@@ -17,6 +18,16 @@ import videoSource from './assets/videos/WhatIf_Screen_002_Video.mp4';
 const SCROLL_SETTINGS = {
   duration: 1.5,
   easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t))
+};
+
+const LENIS_CONFIG: LenisOptions = {
+  duration: 1.5,
+  orientation: 'vertical',
+  gestureOrientation: 'vertical',
+  smoothWheel: true,
+  wheelMultiplier: 1,
+  touchMultiplier: 2,
+  infinite: false
 };
 
 interface ScrollProps {
@@ -44,27 +55,52 @@ const App: React.FC = () => {
   // Scroll Handler mit useLenis
   const lenis = useLenis(({ scroll, velocity }: ScrollProps) => {
     // Verhindere mehrfaches Auslösen während des programmatischen Scrollens
-    if (isScrolling) return;
-
-    // Wenn wir in einer Animations-Szene sind oder die Geschwindigkeit zu hoch ist, kein Snapping
-    if (isAnimationScene || Math.abs(velocity) > 0.1) return;
+    if (isScrolling) {
+      return;
+    }
 
     // Hole aktuelle Szenen-Konfiguration
     if (!currentScene) return;
     const currentSceneConfig = sceneStates[currentScene]?.config;
     
-    // Kein Snapping für Scroll-Animation-Szenen
-    if (currentSceneConfig?.type === 'scroll' || currentSceneConfig?.hasScrollTimeline) {
-      console.log('Scroll: No snapping in scroll animation scene', {
-        scene: currentScene,
-        type: currentSceneConfig.type,
-        hasTimeline: currentSceneConfig.hasScrollTimeline
-      });
+    if (!currentSceneConfig) {
+      console.error('Invalid scene configuration for', currentScene);
+      return;
+    }
+
+    // Kein Snapping für:
+    // 1. Animations-Szenen
+    // 2. Hohe Scroll-Geschwindigkeit
+    // 3. Scroll-Animation-Szenen
+    // 4. Avocado-Szene
+    const isAvocadoScene = currentScene === 'avocado-scene';
+    const isHighVelocity = Math.abs(velocity) > 0.1;
+
+    if (
+      isAnimationScene || 
+      isHighVelocity || 
+      currentSceneConfig.type === 'scroll' || 
+      currentSceneConfig.hasScrollTimeline ||
+      isAvocadoScene
+    ) {
+      if (isHighVelocity) {
+        console.log('Scroll: High velocity detected, skipping snap', { velocity });
+      } else if (isAvocadoScene) {
+        console.log('Scroll: Avocado scene, snapping disabled');
+      } else {
+        console.log('Scroll: Animation or scroll scene, snapping disabled', {
+          isAnimationScene,
+          sceneType: currentSceneConfig.type,
+          hasTimeline: currentSceneConfig.hasScrollTimeline
+        });
+      }
       return;
     }
 
     const sections = document.querySelectorAll<HTMLElement>('.section');
     const currentScrollPosition = scroll;
+    const viewportHeight = window.innerHeight;
+    const scrollThreshold = viewportHeight * 0.3; // 30% der Viewport-Höhe
     
     // Finde die nächstgelegene Section
     let closestSection: HTMLElement | null = null;
@@ -73,8 +109,8 @@ const App: React.FC = () => {
     
     sections.forEach((section) => {
       const rect = section.getBoundingClientRect();
-      const sectionTop = currentScrollPosition + rect.top;
-      const distance = Math.abs(currentScrollPosition - sectionTop);
+      const sectionTop = rect.top;
+      const distance = Math.abs(sectionTop);
       
       if (distance < minDistance) {
         minDistance = distance;
@@ -84,7 +120,7 @@ const App: React.FC = () => {
     });
     
     // Wenn wir eine nahe Section gefunden haben und nicht genau darauf sind
-    if (closestSection && targetSceneId && minDistance > 50 && lenis) {
+    if (closestSection && targetSceneId && Math.abs(minDistance) > 10 && lenis) {
       // Prüfe ob die Ziel-Szene Snapping erlaubt
       const sceneId = targetSceneId as Exclude<SceneId, null>;
       const targetSceneConfig = sceneStates[sceneId]?.config;
@@ -97,16 +133,31 @@ const App: React.FC = () => {
         return;
       }
 
+      // Verhindere Snapping zur Avocado-Szene
+      if (sceneId === 'avocado-scene') {
+        console.log('Scroll: Preventing snap to avocado scene');
+        return;
+      }
+
+      // Nur snappen, wenn wir nah genug an der Section sind
+      if (Math.abs(minDistance) > scrollThreshold) {
+        return;
+      }
+
       console.log('Scroll: Snapping to section', {
         from: currentScene,
         to: sceneId,
         distance: minDistance,
-        velocity,
-        sceneType: targetSceneConfig.type
+        threshold: scrollThreshold
       });
 
       setIsScrolling(true);
-      lenis.scrollTo(closestSection, SCROLL_SETTINGS);
+      lenis.scrollTo(closestSection, {
+        ...SCROLL_SETTINGS,
+        lock: true,
+        immediate: false,
+        duration: 1.0 // Kürzere Duration für responsiveres Gefühl
+      });
       
       // Reset isScrolling nach der Animation
       setTimeout(() => {
@@ -130,20 +181,29 @@ const App: React.FC = () => {
         preserveScrollPosition
       });
 
-      if (withLock) {
-        setIsScrolling(true);
-      }
+      // Setze Scroll-Status
+      setIsScrolling(true);
       
-      lenis.scrollTo(`#${sceneId}`, {
+      // Konfiguriere Scroll-Optionen basierend auf der Szene
+      const isAvocadoScene = sceneId === 'avocado-scene';
+      const scrollOptions = {
         ...SCROLL_SETTINGS,
-        lock: withLock,
-        immediate: !enableSnapping || preserveScrollPosition
-      });
+        lock: withLock || (!isAvocadoScene && enableSnapping),
+        immediate: isAvocadoScene || preserveScrollPosition,
+        duration: isAvocadoScene ? 0 : SCROLL_SETTINGS.duration
+      };
+
+      // Führe Scroll aus
+      lenis.scrollTo(`#${sceneId}`, scrollOptions);
       
-      if (withLock) {
+      // Reset Scroll-Status nach Animation
+      if (!isAvocadoScene) {
         setTimeout(() => {
           setIsScrolling(false);
-        }, SCROLL_SETTINGS.duration * 1000);
+        }, scrollOptions.duration * 1000);
+      } else {
+        // Für Avocado-Szene sofort zurücksetzen
+        setIsScrolling(false);
       }
     };
 
@@ -179,10 +239,10 @@ const App: React.FC = () => {
   }
 
   return (
-    <ReactLenis root>
+    <ReactLenis root options={LENIS_CONFIG}>
       <BackgroundTexture />
       <div className="App">
-        <Section height="100vh">
+        <Section height="100vh" id="welcome-scene">
           <WelcomePage onStart={handleStart} />
         </Section>
 

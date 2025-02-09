@@ -153,7 +153,10 @@ export const useSceneStore = create<SceneState & SceneActions>()(
           const targetScene = currentState.sceneStates[sceneId];
           const previousScene = currentState.currentScene;
 
-          if (!targetScene) return;
+          if (!targetScene || !targetScene.config) {
+            console.error('Store: Invalid scene configuration for', sceneId);
+            return;
+          }
 
           console.log(`Store: Scrolling to scene ${sceneId}`, {
             from: previousScene || 'initial',
@@ -164,19 +167,26 @@ export const useSceneStore = create<SceneState & SceneActions>()(
             currentScrolling: currentState.isScrolling
           });
 
+          // Spezialbehandlung für die Avocado-Szene
+          const isAvocadoScene = sceneId === 'avocado-scene';
+          const isComingFromAvocado = previousScene === 'avocado-scene';
+
           // Erweiterte Snapping-Logik basierend auf Szenen-Typ
           const shouldEnableSnapping = 
+            !isAvocadoScene && 
             targetScene.config.allowSnapping && 
             !targetScene.config.hasScrollTimeline &&
             targetScene.requiresSnapping;
           
           console.log('Store: Snapping decision:', {
             shouldEnableSnapping,
-            reason: targetScene.config.type === 'scroll'
-              ? 'Scroll animation scene - snapping disabled'
-              : shouldEnableSnapping 
-                ? 'Scene allows snapping'
-                : 'Snapping disabled by configuration',
+            reason: isAvocadoScene
+              ? 'Avocado scene - snapping disabled'
+              : targetScene.config.type === 'scroll'
+                ? 'Scroll animation scene - snapping disabled'
+                : shouldEnableSnapping 
+                  ? 'Scene allows snapping'
+                  : 'Snapping disabled by configuration',
             sceneType: targetScene.config.type
           });
           
@@ -186,9 +196,9 @@ export const useSceneStore = create<SceneState & SceneActions>()(
           // Setze Animation-Status und dispatche Event
           const eventDetail = {
             sceneId,
-            withLock: !targetScene.isAnimated && shouldEnableSnapping,
+            withLock: !isAvocadoScene && shouldEnableSnapping,
             enableSnapping: shouldEnableSnapping,
-            preserveScrollPosition: targetScene.config.preserveScrollPosition,
+            preserveScrollPosition: targetScene.config.preserveScrollPosition || isAvocadoScene,
             isAnimated: targetScene.isAnimated,
             previousScene,
             timestamp: Date.now()
