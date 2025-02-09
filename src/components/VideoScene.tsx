@@ -12,6 +12,7 @@ import {
   type VideoId
 } from '../stores/videoStore';
 import '../styles/VideoScene.css';
+import { useInitializeStore } from '../hooks/useInitializeStore';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -49,6 +50,7 @@ const VideoScene: React.FC<VideoSceneProps> = ({
   const playerRef = useRef<ReactPlayerInstance>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const isInitialized = useInitializeStore();
 
   // Video Store Hooks
   const isPlaying = useIsVideoPlaying(id);
@@ -67,13 +69,17 @@ const VideoScene: React.FC<VideoSceneProps> = ({
 
   // Initialisierung
   useEffect(() => {
-    console.log(`Video ${id}: Mount`);
+    console.log(`Video ${id}: Mount`, {
+      isInitialized,
+      isReadyToPlay,
+      isVideoReady
+    });
     
     return () => {
       console.log(`Video ${id}: Unmount`);
       pause(id);
     };
-  }, [id, pause]);
+  }, [id, pause, isInitialized, isReadyToPlay, isVideoReady]);
 
   // Touch-Event-Handler
   useEffect(() => {
@@ -142,17 +148,28 @@ const VideoScene: React.FC<VideoSceneProps> = ({
 
   // Effekt für isReadyToPlay (nach Audio)
   useEffect(() => {
-    if (isReadyToPlay) {
-      console.log(`Video ${id}: Ready to play from audio`);
+    if (isReadyToPlay && isInitialized && isVideoReady) {
+      console.log(`Video ${id}: Ready to play from audio`, {
+        isInitialized,
+        isVideoReady
+      });
       play(id);
     }
-  }, [isReadyToPlay, id, play]);
+  }, [isReadyToPlay, id, play, isInitialized, isVideoReady]);
 
   const handleVideoReady = () => {
-    console.log(`Video ${id}: Ready`);
+    console.log(`Video ${id}: Ready`, {
+      isInitialized,
+      isReadyToPlay
+    });
     setIsVideoReady(true);
     markVideoAsReady(id);
     setMuted(id, startMuted);
+    
+    // Nicht automatisch abspielen beim ersten Laden
+    if (!isInitialized || !isReadyToPlay) {
+      pause(id);
+    }
   };
 
   const handleVideoError = (error: unknown) => {

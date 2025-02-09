@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import SplitType from 'split-type';
 import transcriptData from '../transciption_data/transcript_elli_scene_01.json';
+import { useInitializeStore } from '../hooks/useInitializeStore';
 import '../styles/AudioScene.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -19,13 +20,19 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
   const [isAudioLoaded, setIsAudioLoaded] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(false);
+  const isInitialized = useInitializeStore();
 
   // Audio laden und vorbereiten
   useEffect(() => {
+    if (!isInitialized) return;
+
     const audio = audioRef.current;
     if (!audio) return;
 
+    console.log('Audio Scene: Loading audio');
+    
     const handleCanPlay = () => {
+      console.log('Audio Scene: Audio can play');
       setIsAudioLoaded(true);
       // Auf iOS initial Play-Button anzeigen
       if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
@@ -35,7 +42,7 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
 
     audio.addEventListener('canplay', handleCanPlay);
     return () => audio.removeEventListener('canplay', handleCanPlay);
-  }, []);
+  }, [isInitialized]);
 
   // Erweiterte Benutzerinteraktion erkennen
   useEffect(() => {
@@ -89,7 +96,16 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
 
   // Animation und Audio Setup
   useEffect(() => {
-    if (!textContainerRef.current || !isAudioLoaded) return;
+    if (!textContainerRef.current || !isAudioLoaded || !isInitialized) {
+      console.log('Audio Scene: Waiting for initialization', {
+        hasContainer: !!textContainerRef.current,
+        isAudioLoaded,
+        isInitialized
+      });
+      return;
+    }
+
+    console.log('Audio Scene: Setting up animation');
 
     if (timelineRef.current) {
       timelineRef.current.kill();
@@ -135,13 +151,11 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
       // Finde das passende Segment für dieses Wort
       let currentPosition = 0;
       let segmentStart = 0;
-      let segmentIndex = 0;
 
       // Durchlaufe die Segmente, bis wir das richtige für dieses Wort finden
       for (let i = 0; i < segments.length; i++) {
         const segmentWords = segments[i].text.split(' ');
         if (currentPosition + segmentWords.length > wordIndex) {
-          segmentIndex = i;
           segmentStart = segments[i].start;
           break;
         }
@@ -199,12 +213,12 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
       start: "top center",
       end: "bottom center",
       onEnter: () => {
-        if (audioRef.current && timelineRef.current) {
+        console.log('Audio Scene: Entering viewport');
+        if (audioRef.current && timelineRef.current && isInitialized) {
           const playPromise = audioRef.current.play();
           if (playPromise !== undefined) {
             playPromise.catch(error => {
-              console.log("Auto-play prevented:", error);
-              // Wenn Autoplay verhindert wurde, setzen wir hasInteracted auf false
+              console.log("Audio Scene: Auto-play prevented:", error);
               setHasInteracted(false);
             });
           }
@@ -212,12 +226,14 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
         }
       },
       onLeave: () => {
+        console.log('Audio Scene: Leaving viewport');
         if (audioRef.current && timelineRef.current) {
           audioRef.current.pause();
           timelineRef.current.pause();
         }
       },
       onLeaveBack: () => {
+        console.log('Audio Scene: Leaving viewport backwards');
         if (audioRef.current && timelineRef.current) {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
@@ -225,11 +241,12 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
         }
       },
       onEnterBack: () => {
-        if (audioRef.current && timelineRef.current) {
+        console.log('Audio Scene: Entering viewport backwards');
+        if (audioRef.current && timelineRef.current && isInitialized) {
           const playPromise = audioRef.current.play();
           if (playPromise !== undefined) {
             playPromise.catch(error => {
-              console.log("Auto-play prevented:", error);
+              console.log("Audio Scene: Auto-play prevented:", error);
               setHasInteracted(false);
             });
           }
@@ -246,17 +263,16 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
 
     // Cleanup
     return () => {
+      console.log('Audio Scene: Cleaning up');
       if (splitRef.current) {
         splitRef.current.revert();
       }
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
+      if (timelineRef.current) {
+        timelineRef.current.kill();
       }
-      timelineRef.current?.kill();
-      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+      trigger.kill();
     };
-  }, [isAudioLoaded, hasInteracted]);
+  }, [isAudioLoaded, isInitialized]);
 
   // Audio-Zeit-Update und Ende erkennen
   useEffect(() => {
@@ -285,13 +301,15 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
   }, [onAnimationComplete]);
 
   return (
-    <div id="audio-scene" className="audio-scene">
-      <div className="text-container" ref={textContainerRef} />
+    <div className="audio-scene" id="audio-scene">
       <audio 
         ref={audioRef} 
-        src="/audio/elli_scene_01.mp3" 
+        src="/audio/elli_scene_01.mp3"
         preload="auto"
-        playsInline // Wichtig für iOS
+      />
+      <div 
+        ref={textContainerRef} 
+        className="text-container"
       />
       {showPlayButton && (
         <button 
@@ -299,7 +317,7 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
           onClick={handleManualPlay}
           aria-label="Audio abspielen"
         >
-          Audio abspielen
+          Play
         </button>
       )}
     </div>

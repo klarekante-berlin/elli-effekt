@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
 import { useSceneStore, SceneId } from '../stores/sceneStore';
+import { useInitializeStore } from '../hooks/useInitializeStore';
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 
@@ -60,27 +61,41 @@ export const withSceneControl = <P extends BaseSceneProps>(
     const controllerRef = useRef<SceneController | null>(null);
     const isPlayingRef = useRef<boolean>(false);
     const timelineRef = useRef<gsap.core.Timeline | null>(null);
-    const { isScrolling, setIsScrolling, setCurrentScene } = useSceneStore();
+    const isInitialized = useInitializeStore();
+    const { 
+      isScrolling, 
+      setIsScrolling, 
+      setCurrentScene,
+      sceneStates,
+      currentScene,
+      previousScene 
+    } = useSceneStore();
 
     // Scene Controller Setup
     useEffect(() => {
+      if (!isInitialized) return;
+
       const controller: SceneController = {
         play: () => {
           if (!isPlayingRef.current && !isScrolling) {
+            console.log(`Scene ${id}: Play`, { isScrolling });
             isPlayingRef.current = true;
             timelineRef.current?.play();
           }
         },
         pause: () => {
           if (isPlayingRef.current) {
+            console.log(`Scene ${id}: Pause`);
             isPlayingRef.current = false;
             timelineRef.current?.pause();
           }
         },
         reset: () => {
+          console.log(`Scene ${id}: Reset`);
           timelineRef.current?.restart();
         },
         cleanup: () => {
+          console.log(`Scene ${id}: Cleanup`);
           timelineRef.current?.kill();
           ScrollTrigger.getAll().forEach(trigger => {
             if (trigger.vars.trigger === containerRef.current) {
@@ -97,39 +112,112 @@ export const withSceneControl = <P extends BaseSceneProps>(
         scrollCallbacks = options.setupScene(props, controller);
       }
 
-      // ScrollTrigger Setup nur wenn handleScroll UND snapIntoPlace aktiv sind
-      if (options.handleScroll && options.snapIntoPlace && containerRef.current) {
+      // Zentrale Funktion für das Snapping
+      const handleSnapping = (direction: 'enter' | 'enterBack') => {
+        const targetScene = sceneStates[id];
+        const isScrollingFromAvocado = previousScene === 'avocado-scene';
+        const shouldSnap = direction === 'enter' 
+          ? targetScene?.requiresSnapping
+          : targetScene?.requiresSnapping || isScrollingFromAvocado;
+
+        console.log(`Scene ${id}: Handle Snapping`, {
+          direction,
+          shouldSnap,
+          isScrollingFromAvocado,
+          requiresSnapping: targetScene?.requiresSnapping,
+          isScrolling,
+          isInitialized
+        });
+
+        if (shouldSnap && containerRef.current && isInitialized) {
+          const element = containerRef.current;
+          const elementRect = element.getBoundingClientRect();
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const targetY = scrollTop + elementRect.top;
+
+          // Setze isScrolling während des Snappings
+          setIsScrolling(true);
+
+          // Berechne die Scroll-Richtung
+          const currentScroll = window.pageYOffset;
+          const scrollDirection = direction === 'enter' ? 'down' : 'up';
+          
+          console.log(`Scene ${id}: Snapping`, {
+            targetY,
+            currentScroll,
+            direction: scrollDirection,
+            elementTop: elementRect.top
+          });
+
+          // Stoppe alle laufenden GSAP Animationen
+          gsap.killTweensOf(window);
+
+          gsap.to(window, {
+            duration: 0.5,
+            scrollTo: { 
+              y: targetY, 
+              autoKill: false
+            },
+            ease: "power2.inOut",
+            onStart: () => {
+              console.log(`Scene ${id}: Snap Start`);
+            },
+            onUpdate: () => {
+              // Verhindere weiteres Scrollen während des Snappings
+              if (window.pageYOffset !== targetY) {
+                window.scrollTo(0, targetY);
+              }
+            },
+            onComplete: () => {
+              console.log(`Scene ${id}: Snap Complete`);
+              // Verzögere das Zurücksetzen des isScrolling-States
+              setTimeout(() => {
+                setIsScrolling(false);
+                // Nur automatisch starten, wenn es keine Video-Szene ist oder wenn autoStart aktiv ist
+                const shouldAutoStart = id !== 'video-scene' || (autoStart && !isScrolling);
+                if (shouldAutoStart) {
+                  controller.play();
+                }
+              }, 100);
+            }
+          });
+        }
+      };
+
+      // ScrollTrigger Setup
+      if (options.handleScroll && containerRef.current) {
         const trigger = ScrollTrigger.create({
           trigger: containerRef.current,
           start: scrollTriggerOptions.start || 'top center',
           end: scrollTriggerOptions.end || 'bottom center',
           markers: scrollTriggerOptions.markers || false,
           onEnter: () => {
+            console.log(`Scene ${id}: Enter`, {
+              isScrolling,
+              requiresSnapping: sceneStates[id]?.requiresSnapping,
+              previousScene,
+              isInitialized
+            });
+            
             setCurrentScene(id);
             if (scrollCallbacks?.onEnter) {
               scrollCallbacks.onEnter();
             }
             
-            // Snap nur wenn snapIntoPlace true ist
-            if (options.snapIntoPlace && containerRef.current) {
-              const element = containerRef.current;
-              const elementRect = element.getBoundingClientRect();
-              const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-              const targetY = scrollTop + elementRect.top;
-
-              gsap.to(window, {
-                duration: 0.5,
-                scrollTo: { y: targetY, autoKill: true },
-                ease: "power2.inOut",
-                onComplete: () => {
-                  if (!isScrolling) {
-                    controller.play();
-                  }
-                }
+            // Verzögere das Snapping leicht, um sicherzustellen, dass der ScrollTrigger-Event abgeschlossen ist
+            if (!isScrolling && isInitialized) {
+              requestAnimationFrame(() => {
+                handleSnapping('enter');
               });
             }
           },
           onLeave: () => {
+            console.log(`Scene ${id}: Leave`, {
+              isScrolling,
+              isPlaying: isPlayingRef.current,
+              isInitialized
+            });
+            
             if (scrollCallbacks?.onLeave) {
               scrollCallbacks.onLeave();
             }
@@ -138,31 +226,32 @@ export const withSceneControl = <P extends BaseSceneProps>(
             }
           },
           onEnterBack: () => {
+            console.log(`Scene ${id}: Enter Back`, {
+              isScrolling,
+              requiresSnapping: sceneStates[id]?.requiresSnapping,
+              previousScene,
+              isInitialized
+            });
+            
             setCurrentScene(id);
             if (scrollCallbacks?.onEnterBack) {
               scrollCallbacks.onEnterBack();
             }
             
-            // Snap nur wenn snapIntoPlace true ist
-            if (options.snapIntoPlace && containerRef.current) {
-              const element = containerRef.current;
-              const elementRect = element.getBoundingClientRect();
-              const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-              const targetY = scrollTop + elementRect.top;
-
-              gsap.to(window, {
-                duration: 0.5,
-                scrollTo: { y: targetY, autoKill: true },
-                ease: "power2.inOut",
-                onComplete: () => {
-                  if (!isScrolling) {
-                    controller.play();
-                  }
-                }
+            // Verzögere das Snapping leicht, um sicherzustellen, dass der ScrollTrigger-Event abgeschlossen ist
+            if (!isScrolling && isInitialized) {
+              requestAnimationFrame(() => {
+                handleSnapping('enterBack');
               });
             }
           },
           onLeaveBack: () => {
+            console.log(`Scene ${id}: Leave Back`, {
+              isScrolling,
+              isPlaying: isPlayingRef.current,
+              isInitialized
+            });
+            
             if (scrollCallbacks?.onLeaveBack) {
               scrollCallbacks.onLeaveBack();
             }
@@ -187,7 +276,22 @@ export const withSceneControl = <P extends BaseSceneProps>(
           options.cleanupScene();
         }
       };
-    }, []);
+    }, [isInitialized]); // Nur neu erstellen, wenn isInitialized sich ändert
+
+    // Auto-Start wenn aktiviert (aber nicht für Video-Szenen beim ersten Laden)
+    useEffect(() => {
+      if (!isInitialized) return;
+
+      const shouldAutoStart = id !== 'video-scene' || (autoStart && !isScrolling);
+      if (shouldAutoStart) {
+        console.log(`Scene ${id}: Auto Start`, {
+          isInitialized,
+          isScrolling,
+          autoStart
+        });
+        controllerRef.current?.play();
+      }
+    }, [autoStart, isScrolling, isInitialized]);
 
     // Touch Event Handler
     useEffect(() => {
@@ -224,13 +328,6 @@ export const withSceneControl = <P extends BaseSceneProps>(
         element.removeEventListener('touchend', handleTouchEnd);
       };
     }, []);
-
-    // Auto-Start wenn aktiviert
-    useEffect(() => {
-      if (autoStart && !isScrolling) {
-        controllerRef.current?.play();
-      }
-    }, [autoStart, isScrolling]);
 
     return (
       <div ref={containerRef} className={`scene scene-${id}`}>

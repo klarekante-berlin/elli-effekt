@@ -7,7 +7,7 @@ import ChatScene from './components/ChatScene';
 import AvocadoScene from './components/AvocadoScene';
 import BackgroundTexture from './components/BackgroundTexture';
 import Section from './components/Section';
-import { useSceneStore } from './stores/sceneStore';
+import { useSceneStore, SceneId } from './stores/sceneStore';
 import { useBaseStore } from './stores/baseStore';
 import { useVideoStore } from './stores/videoStore';
 import { useRootStore } from './stores/rootStore';
@@ -26,7 +26,7 @@ interface ScrollProps {
 
 const App: React.FC = () => {
   const { isScrolling, setIsScrolling, isAnimationScene } = useBaseStore();
-  const { currentScene } = useSceneStore();
+  const { currentScene, sceneStates } = useSceneStore();
   const { isInitialized, initialize, hydrate } = useRootStore();
   
   // Initialisiere die Stores
@@ -49,12 +49,27 @@ const App: React.FC = () => {
     // Wenn wir in einer Animations-Szene sind oder die Geschwindigkeit zu hoch ist, kein Snapping
     if (isAnimationScene || Math.abs(velocity) > 0.1) return;
 
-    const sections = document.querySelectorAll('.section');
+    // Hole aktuelle Szenen-Konfiguration
+    if (!currentScene) return;
+    const currentSceneConfig = sceneStates[currentScene]?.config;
+    
+    // Kein Snapping für Scroll-Animation-Szenen
+    if (currentSceneConfig?.type === 'scroll' || currentSceneConfig?.hasScrollTimeline) {
+      console.log('Scroll: No snapping in scroll animation scene', {
+        scene: currentScene,
+        type: currentSceneConfig.type,
+        hasTimeline: currentSceneConfig.hasScrollTimeline
+      });
+      return;
+    }
+
+    const sections = document.querySelectorAll<HTMLElement>('.section');
     const currentScrollPosition = scroll;
     
     // Finde die nächstgelegene Section
-    let closestSection = null;
+    let closestSection: HTMLElement | null = null;
     let minDistance = Infinity;
+    let targetSceneId: string | null = null;
     
     sections.forEach((section) => {
       const rect = section.getBoundingClientRect();
@@ -64,11 +79,32 @@ const App: React.FC = () => {
       if (distance < minDistance) {
         minDistance = distance;
         closestSection = section;
+        targetSceneId = section.id;
       }
     });
     
     // Wenn wir eine nahe Section gefunden haben und nicht genau darauf sind
-    if (closestSection && minDistance > 50 && lenis) {
+    if (closestSection && targetSceneId && minDistance > 50 && lenis) {
+      // Prüfe ob die Ziel-Szene Snapping erlaubt
+      const sceneId = targetSceneId as Exclude<SceneId, null>;
+      const targetSceneConfig = sceneStates[sceneId]?.config;
+      
+      if (!targetSceneConfig?.allowSnapping) {
+        console.log('Scroll: Target scene does not allow snapping', {
+          scene: sceneId,
+          type: targetSceneConfig?.type
+        });
+        return;
+      }
+
+      console.log('Scroll: Snapping to section', {
+        from: currentScene,
+        to: sceneId,
+        distance: minDistance,
+        velocity,
+        sceneType: targetSceneConfig.type
+      });
+
       setIsScrolling(true);
       lenis.scrollTo(closestSection, SCROLL_SETTINGS);
       
@@ -84,13 +120,25 @@ const App: React.FC = () => {
     if (!lenis) return;
 
     const handleScrollToScene = (event: CustomEvent) => {
-      const { sceneId, withLock } = event.detail;
+      const { sceneId, withLock, enableSnapping, preserveScrollPosition, previousScene } = event.detail;
       
+      console.log('App: Handling scroll to scene', {
+        from: previousScene || 'initial',
+        to: sceneId,
+        withLock,
+        enableSnapping,
+        preserveScrollPosition
+      });
+
       if (withLock) {
         setIsScrolling(true);
       }
       
-      lenis.scrollTo(`#${sceneId}`, SCROLL_SETTINGS);
+      lenis.scrollTo(`#${sceneId}`, {
+        ...SCROLL_SETTINGS,
+        lock: withLock,
+        immediate: !enableSnapping || preserveScrollPosition
+      });
       
       if (withLock) {
         setTimeout(() => {
@@ -146,7 +194,7 @@ const App: React.FC = () => {
           <VideoScene 
             id="video-scene"
             videoSource={videoSource}
-            isReadyToPlay={true}
+            isReadyToPlay={false}
             onComplete={handleVideoComplete}
             showControls={true}
             loop={false}
