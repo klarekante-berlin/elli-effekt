@@ -32,15 +32,23 @@
   backdrop-filter: blur(10px);
   display: flex;
   gap: 1rem;
-  align-self: flex-start;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   transform-style: preserve-3d;
   backface-visibility: hidden;
   will-change: transform, opacity;
+  position: relative;
 }
 
-.comment:nth-child(2n) {
+.comment.left {
+  align-self: flex-start;
+  margin-right: 10%;
+  left: 1rem;
+}
+
+.comment.right {
   align-self: flex-end;
+  margin-left: 10%;
+  right: 1rem;
   box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.1);
 }
 
