@@ -48,10 +48,11 @@ const ChatScene: React.FC<ChatSceneProps> = ({
 }) => {
   const commentsRef = useRef<HTMLDivElement>(null);
   const replayButtonRef = useRef<HTMLButtonElement>(null);
+  const messageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const currentIndexRef = useRef(0);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const visibleMessagesCount = 5;
+  const visibleMessagesCount = 6;
   
   // Audio Refs
   const audioRef1 = useRef<HTMLAudioElement | null>(null);
@@ -76,6 +77,14 @@ const ChatScene: React.FC<ChatSceneProps> = ({
       if (audioRef2.current) audioRef2.current = null;
     };
   }, []);
+
+  // Funktion zum Berechnen der Nachrichtenhöhe
+  const calculateMessageHeight = (element: HTMLElement): number => {
+    const styles = window.getComputedStyle(element);
+    const marginBottom = parseFloat(styles.marginBottom);
+    const height = element.getBoundingClientRect().height;
+    return height + marginBottom;
+  };
 
   // Initial Setup - Hide all messages
   useEffect(() => {
@@ -116,18 +125,24 @@ const ChatScene: React.FC<ChatSceneProps> = ({
 
     timelineRef.current = timeline;
 
-    const messageElements = Array.from(commentsRef.current.children);
+    const messageElements = Array.from(commentsRef.current.children) as HTMLElement[];
     const totalMessages = messageElements.length;
     const visibleMessages = Math.min(visibleMessagesCount, totalMessages);
-    const messageSpacing = 40;
-    const topPadding = 50;
-    const messageHeight = 120;
+    
+    // Berechne den verfügbaren Platz im Viewport
+    const viewportHeight = window.innerHeight;
+    const topPadding = viewportHeight * 0.1; // 10% Abstand oben
+    const bottomPadding = viewportHeight * 0.15; // 15% Abstand unten für den Replay-Button
+    const availableHeight = viewportHeight - topPadding - bottomPadding;
+    
+    // Berechne den gleichmäßigen Abstand zwischen den Nachrichten
+    const messageSpacing = availableHeight / (visibleMessagesCount - 1);
 
     // Initial Setup - Alle Nachrichten verstecken
     messageElements.forEach((element) => {
       gsap.set(element, {
         opacity: 0,
-        y: window.innerHeight,
+        y: viewportHeight,
         display: 'flex',
         scale: 1
       });
@@ -136,12 +151,17 @@ const ChatScene: React.FC<ChatSceneProps> = ({
     // Animation für sichtbare Nachrichten
     messageElements.forEach((element, index) => {
       const delay = index * 2;
-      let currentY = topPadding + (index * (messageHeight + messageSpacing));
+      
+      // Berechne die Position basierend auf dem verfügbaren Platz
+      const calculateY = () => {
+        const visibleIndex = index % visibleMessagesCount;
+        return topPadding + (visibleIndex * messageSpacing);
+      };
 
       // Einblend-Animation für neue Nachricht
       timeline.to(element, {
         opacity: 1,
-        y: currentY,
+        y: calculateY(),
         duration: 1.2,
         ease: 'power2.out',
         onStart: () => {
@@ -149,20 +169,20 @@ const ChatScene: React.FC<ChatSceneProps> = ({
         }
       }, delay);
 
-      // Wenn mehr als visibleMessages sichtbar sind, vorherige Nachrichten nach oben schieben
+      // Wenn mehr als visibleMessages sichtbar sind
       if (index >= visibleMessages) {
         const removeDelay = delay;
-        const prevElements = messageElements.slice(Math.max(0, index - visibleMessages), index);
+        const startIndex = index - visibleMessages;
+        const prevElements = messageElements.slice(startIndex, index);
         
-        // Berechne die Position für jede vorherige Nachricht
+        // Animiere vorherige Nachrichten
         prevElements.forEach((prevElement, prevIndex) => {
-          const prevY = topPadding + ((prevIndex - 1) * (messageHeight + messageSpacing));
           const isOldest = prevIndex === 0;
           
-          // Fadeout-Animation für die älteste Nachricht
           if (isOldest) {
+            // Fadeout-Animation für die älteste Nachricht
             timeline.to(prevElement, {
-              y: prevY - messageHeight - messageSpacing,
+              y: topPadding - calculateMessageHeight(prevElement),
               opacity: 0,
               scale: 0.95,
               duration: 0.8,
@@ -170,8 +190,10 @@ const ChatScene: React.FC<ChatSceneProps> = ({
             }, removeDelay);
           } else {
             // Verschiebe andere Nachrichten nach oben
+            const newPosition = topPadding + ((prevIndex - 1) * messageSpacing);
+            
             timeline.to(prevElement, {
-              y: prevY,
+              y: newPosition,
               opacity: 0.7,
               scale: 1,
               duration: 0.8,
@@ -182,6 +204,7 @@ const ChatScene: React.FC<ChatSceneProps> = ({
       }
     });
 
+    // Cleanup
     return () => {
       timeline.kill();
     };
@@ -264,7 +287,11 @@ const ChatScene: React.FC<ChatSceneProps> = ({
       <div ref={commentsRef} className="chat-messages">
         {comments.map((comment, index) => (
           <div 
-            key={index} 
+            key={index}
+            ref={(el) => {
+              messageRefs.current[index] = el;
+              return undefined;
+            }}
             className={`comment ${comment.isRight ? 'right' : 'left'}`}
           >
             <div className="avatar-container">
