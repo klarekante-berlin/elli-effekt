@@ -133,12 +133,13 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
     
     case 'UPDATE_SCENE_STATE':
+      if (!action.payload.sceneId) return state;
       return {
         ...state,
         sceneStates: {
           ...state.sceneStates,
-          [action.payload.sceneId]: {
-            ...state.sceneStates[action.payload.sceneId],
+          [action.payload.sceneId as NonNullSceneId]: {
+            ...state.sceneStates[action.payload.sceneId as NonNullSceneId],
             ...action.payload.updates
           }
         }

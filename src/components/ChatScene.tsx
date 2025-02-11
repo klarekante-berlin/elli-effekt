@@ -34,9 +34,10 @@ const comments: Comment[] = [
 
 interface ChatSceneProps {
   onComplete?: () => void;
+  isActive?: boolean;
 }
 
-const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
+const ChatScene: React.FC<ChatSceneProps> = ({ onComplete, isActive = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const commentsRef = useRef<HTMLDivElement>(null);
   const replayButtonRef = useRef<HTMLButtonElement>(null);
@@ -111,18 +112,20 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
     };
   }, []);
 
-  // Handle animation state changes
+  // Aktiviere/Deaktiviere Animation basierend auf isActive
   useEffect(() => {
-    if (isPlaying) {
+    if (isActive) {
+      setIsPlaying(true);
       if (currentIndexRef.current === 0) {
         startMessageSequence();
       } else {
         resumeMessageSequence();
       }
     } else {
+      setIsPlaying(false);
       pauseMessageSequence();
     }
-  }, [isPlaying]);
+  }, [isActive]);
 
   const clearMessageInterval = () => {
     if (intervalRef.current) {
@@ -132,6 +135,8 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
   };
 
   const startMessageSequence = () => {
+    if (!isActive) return;
+    
     animateMessages(currentIndexRef.current);
     
     clearMessageInterval();
@@ -156,6 +161,8 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
   };
 
   const resumeMessageSequence = () => {
+    if (!isActive) return;
+    
     if (timelineRef.current) {
       timelineRef.current.play();
       startMessageSequence();
