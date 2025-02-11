@@ -2,39 +2,41 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { useVideoControl } from '../hooks/useVideoControl';
+import { useApp, SceneId } from '../context/AppContext';
+import { withSceneControl, BaseSceneProps, SceneController } from '../hoc/withSceneControl';
 import '../styles/VideoScene.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
-interface VideoSceneProps {
-  id: string;
+interface VideoSceneProps extends BaseSceneProps {
+  controller?: SceneController;
+  isPlaying?: boolean;
   videoSource: string;
-  isReadyToPlay: boolean;
-  onComplete?: () => void;
   showControls?: boolean;
   loop?: boolean;
   showFrame?: boolean;
   startMuted?: boolean;
+  isReadyToPlay?: boolean;
   isActive?: boolean;
 }
 
 const VideoScene: React.FC<VideoSceneProps> = ({
   id,
-  videoSource,
-  isReadyToPlay,
+  controller,
   onComplete,
+  isPlaying = false,
+  videoSource,
   showControls = false,
   loop = false,
   showFrame = false,
-  startMuted = true,
-  isActive = false
+  startMuted = true
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(startMuted);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isMuted, setIsMuted] = useState(startMuted);
+
+  const { dispatch } = useApp();
+  const sceneId: SceneId = 'video-scene';
 
   // Video laden und initialisieren
   useEffect(() => {
@@ -45,6 +47,13 @@ const VideoScene: React.FC<VideoSceneProps> = ({
     
     const handleCanPlay = () => {
       setIsLoaded(true);
+      dispatch({
+        type: 'UPDATE_SCENE_STATE',
+        payload: {
+          sceneId,
+          updates: { isReady: true }
+        }
+      });
     };
     
     video.addEventListener('canplay', handleCanPlay);
@@ -52,102 +61,52 @@ const VideoScene: React.FC<VideoSceneProps> = ({
     return () => {
       video.removeEventListener('canplay', handleCanPlay);
     };
-  }, [videoSource]);
+  }, [dispatch]);
 
-  // ScrollTrigger Setup für automatisches Abspielen
-  useEffect(() => {
-    if (!containerRef.current || !videoRef.current) return;
-
-    const trigger = ScrollTrigger.create({
-      trigger: containerRef.current,
-      start: 'top center',
-      end: 'bottom center',
-      onEnter: () => {
-        if (videoRef.current && isLoaded && isReadyToPlay) {
-          setIsPlaying(true);
-          videoRef.current.play().catch(error => {
-            console.warn('Video autoplay failed:', error);
-            setIsMuted(true);
-            videoRef.current?.play();
-          });
-        }
-      },
-      onLeave: () => {
-        if (videoRef.current) {
-          setIsPlaying(false);
-          videoRef.current.pause();
-        }
-      },
-      onEnterBack: () => {
-        if (videoRef.current && isLoaded && isReadyToPlay) {
-          setIsPlaying(true);
-          videoRef.current.play().catch(error => {
-            console.warn('Video autoplay failed:', error);
-            setIsMuted(true);
-            videoRef.current?.play();
-          });
-        }
-      },
-      onLeaveBack: () => {
-        if (videoRef.current) {
-          setIsPlaying(false);
-          videoRef.current.pause();
-        }
-      }
-    });
-
-    return () => {
-      trigger.kill();
-    };
-  }, [isLoaded, isReadyToPlay]);
-
-  // Video-Steuerung basierend auf isActive
+  // Video Control
   useEffect(() => {
     if (!videoRef.current || !isLoaded) return;
 
     const video = videoRef.current;
 
-    if (isActive && isReadyToPlay) {
-      setIsPlaying(true);
+    const handleEnded = () => {
+      if (!loop) {
+        dispatch({
+          type: 'UPDATE_SCENE_STATE',
+          payload: {
+            sceneId,
+            updates: { isComplete: true, isActive: false }
+          }
+        });
+        if (onComplete) {
+          onComplete();
+        }
+      }
+    };
+    
+    video.addEventListener('ended', handleEnded);
+
+    if (isPlaying) {
       video.play().catch(error => {
         console.warn('Video autoplay failed:', error);
         setIsMuted(true);
         video.play();
       });
     } else {
-      setIsPlaying(false);
       video.pause();
     }
-  }, [isActive, isReadyToPlay, isLoaded]);
 
-  // Video-Ende-Handler
-  useEffect(() => {
-    if (!videoRef.current) return;
-    
-    const video = videoRef.current;
-    
-    const handleEnded = () => {
-      if (!loop && onComplete) {
-        onComplete();
-      }
-    };
-    
-    video.addEventListener('ended', handleEnded);
-    
     return () => {
       video.removeEventListener('ended', handleEnded);
     };
-  }, [loop, onComplete]);
+  }, [isPlaying, isLoaded, loop, onComplete, dispatch]);
 
   const togglePlay = () => {
-    if (!videoRef.current) return;
-    
     if (isPlaying) {
-      videoRef.current.pause();
+      controller?.pause();
     } else {
-      videoRef.current.play();
+      controller?.play();
     }
-    setIsPlaying(!isPlaying);
   };
 
   const toggleMute = () => {
@@ -158,7 +117,7 @@ const VideoScene: React.FC<VideoSceneProps> = ({
   };
 
   return (
-    <div ref={containerRef} className={`video-scene ${showFrame ? 'with-frame' : ''}`}>
+    <div className={`video-scene ${showFrame ? 'with-frame' : ''} ${isPlaying ? 'active' : ''}`}>
       <div className="video-container">
         <video
           ref={videoRef}
@@ -217,4 +176,23 @@ const VideoScene: React.FC<VideoSceneProps> = ({
   );
 };
 
-export default VideoScene; 
+const WrappedVideoScene = withSceneControl(VideoScene, {
+  setupScene: (controller) => {
+    return {
+      onEnter: () => {
+        controller.play();
+      },
+      onLeave: () => {
+        controller.pause();
+      },
+      onEnterBack: () => {
+        controller.play();
+      },
+      onLeaveBack: () => {
+        controller.pause();
+      }
+    };
+  }
+});
+
+export default WrappedVideoScene; 

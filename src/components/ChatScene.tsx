@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useApp, SceneId } from '../context/AppContext';
+import { withSceneControl, BaseSceneProps, SceneController } from '../hoc/withSceneControl';
 import '../styles/ChatScene.css';
 import messageSound1 from '../assets/audio_effects/message_01.wav';
 import messageSound2 from '../assets/audio_effects/message_02.wav';
@@ -32,24 +34,31 @@ const comments: Comment[] = [
   { text: 'Zum kotzen!!', name: 'EcoRage', timestamp: '14:29', isRight: false }
 ];
 
-interface ChatSceneProps {
-  onComplete?: () => void;
+interface ChatSceneProps extends BaseSceneProps {
+  controller?: SceneController;
+  isPlaying?: boolean;
   isActive?: boolean;
 }
 
-const ChatScene: React.FC<ChatSceneProps> = ({ onComplete, isActive = false }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+const ChatScene: React.FC<ChatSceneProps> = ({
+  id,
+  controller,
+  onComplete,
+  isPlaying = false
+}) => {
   const commentsRef = useRef<HTMLDivElement>(null);
   const replayButtonRef = useRef<HTMLButtonElement>(null);
   const currentIndexRef = useRef(0);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const visibleMessagesCount = 5;
   
   // Audio Refs
   const audioRef1 = useRef<HTMLAudioElement | null>(null);
   const audioRef2 = useRef<HTMLAudioElement | null>(null);
+
+  const { dispatch } = useApp();
+  const sceneId: SceneId = 'chat-scene';
 
   // Audio Setup
   useEffect(() => {
@@ -77,207 +86,124 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete, isActive = false }) =
       gsap.set(element, {
         opacity: 0,
         y: window.innerHeight,
-        scale: 0.95,
+        scale: 0.90,
         filter: 'blur(0px)',
-        z: 0
+        z: 100
       });
     });
   }, []);
 
-  // ScrollTrigger Setup
+  // Animation Control
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!commentsRef.current) return;
 
-    const trigger = ScrollTrigger.create({
-      trigger: containerRef.current,
-      start: 'top center',
-      end: 'bottom center',
-      onEnter: () => {
-        setIsPlaying(true);
-      },
-      onLeave: () => {
-        setIsPlaying(false);
-      },
-      onEnterBack: () => {
-        setIsPlaying(true);
-      },
-      onLeaveBack: () => {
-        setIsPlaying(false);
+    const timeline = gsap.timeline({ 
+      paused: true,
+      onComplete: () => {
+        dispatch({
+          type: 'UPDATE_SCENE_STATE',
+          payload: {
+            sceneId,
+            updates: { isComplete: true }
+          }
+        });
+        if (onComplete) {
+          onComplete();
+        }
+        showReplayButton();
+      }
+    });
+
+    timelineRef.current = timeline;
+
+    const messageElements = Array.from(commentsRef.current.children);
+    const totalMessages = messageElements.length;
+    const visibleMessages = Math.min(visibleMessagesCount, totalMessages);
+    const messageSpacing = 40;
+    const topPadding = 50;
+    const messageHeight = 120;
+
+    // Initial Setup - Alle Nachrichten verstecken
+    messageElements.forEach((element) => {
+      gsap.set(element, {
+        opacity: 0,
+        y: window.innerHeight,
+        display: 'flex',
+        scale: 1
+      });
+    });
+
+    // Animation für sichtbare Nachrichten
+    messageElements.forEach((element, index) => {
+      const delay = index * 2;
+      let currentY = topPadding + (index * (messageHeight + messageSpacing));
+
+      // Einblend-Animation für neue Nachricht
+      timeline.to(element, {
+        opacity: 1,
+        y: currentY,
+        duration: 1.2,
+        ease: 'power2.out',
+        onStart: () => {
+          playMessageSound(index);
+        }
+      }, delay);
+
+      // Wenn mehr als visibleMessages sichtbar sind, vorherige Nachrichten nach oben schieben
+      if (index >= visibleMessages) {
+        const removeDelay = delay;
+        const prevElements = messageElements.slice(Math.max(0, index - visibleMessages), index);
+        
+        // Berechne die Position für jede vorherige Nachricht
+        prevElements.forEach((prevElement, prevIndex) => {
+          const prevY = topPadding + ((prevIndex - 1) * (messageHeight + messageSpacing));
+          const isOldest = prevIndex === 0;
+          
+          // Fadeout-Animation für die älteste Nachricht
+          if (isOldest) {
+            timeline.to(prevElement, {
+              y: prevY - messageHeight - messageSpacing,
+              opacity: 0,
+              scale: 0.95,
+              duration: 0.8,
+              ease: 'power2.in'
+            }, removeDelay);
+          } else {
+            // Verschiebe andere Nachrichten nach oben
+            timeline.to(prevElement, {
+              y: prevY,
+              opacity: 0.7,
+              scale: 1,
+              duration: 0.8,
+              ease: 'power2.inOut'
+            }, removeDelay);
+          }
+        });
       }
     });
 
     return () => {
-      trigger.kill();
-      clearMessageInterval();
+      timeline.kill();
     };
-  }, []);
+  }, [onComplete, dispatch]);
 
-  // Aktiviere/Deaktiviere Animation basierend auf isActive
+  // Play/Pause Control
   useEffect(() => {
-    if (isActive) {
-      setIsPlaying(true);
-      if (currentIndexRef.current === 0) {
-        startMessageSequence();
-      } else {
-        resumeMessageSequence();
-      }
+    if (!timelineRef.current) return;
+
+    if (isPlaying) {
+      timelineRef.current.play();
     } else {
-      setIsPlaying(false);
-      pauseMessageSequence();
-    }
-  }, [isActive]);
-
-  const clearMessageInterval = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  };
-
-  const startMessageSequence = () => {
-    if (!isActive) return;
-    
-    animateMessages(currentIndexRef.current);
-    
-    clearMessageInterval();
-    
-    intervalRef.current = setInterval(() => {
-      if (currentIndexRef.current < comments.length - 1) {
-        currentIndexRef.current++;
-        animateMessages(currentIndexRef.current);
-      } else {
-        clearMessageInterval();
-        showReplayButton();
-        if (onComplete) onComplete();
-      }
-    }, 2000);
-  };
-
-  const pauseMessageSequence = () => {
-    clearMessageInterval();
-    if (timelineRef.current) {
       timelineRef.current.pause();
     }
-  };
-
-  const resumeMessageSequence = () => {
-    if (!isActive) return;
-    
-    if (timelineRef.current) {
-      timelineRef.current.play();
-      startMessageSequence();
-    }
-  };
-
-  const animateMessages = (currentIndex: number) => {
-    if (!containerRef.current || !commentsRef.current) return;
-
-    playMessageSound(currentIndex);
-
-    const messageElements = Array.from(commentsRef.current.children);
-    const messageSpacing = 30;
-    const topPadding = 40;
-    
-    if (timelineRef.current) {
-      timelineRef.current.kill();
-    }
-    
-    const tl = gsap.timeline({
-      paused: !isPlaying,
-      defaults: {
-        ease: 'power2.out',
-        duration: 0.4
-      }
-    });
-    
-    timelineRef.current = tl;
-
-    // Berechne Start- und Endindex für sichtbare Nachrichten
-    const startIndex = Math.max(0, currentIndex - visibleMessagesCount + 1);
-    const endIndex = currentIndex;
-    let currentY = topPadding;
-
-    // Fade out älteste Nachricht
-    if (startIndex > 0) {
-      const oldestMessage = messageElements[startIndex - 1];
-      tl.to(oldestMessage, {
-        y: -60,
-        opacity: 0,
-        scale: 0.95,
-        filter: 'blur(4px)',
-        z: -100,
-        transformOrigin: 'center center',
-        duration: 0.4,
-        ease: 'power2.inOut'
-      }, 0);
-    }
-
-    // Positioniere sichtbare Nachrichten
-    messageElements.forEach((element, index) => {
-      if (index >= startIndex && index <= endIndex) {
-        const elementHeight = (element as HTMLElement).offsetHeight || 80;
-        
-        if (index === currentIndex) {
-          // Neue Nachricht einblenden
-          tl.fromTo(element,
-            { 
-              y: window.innerHeight,
-              opacity: 0,
-              scale: 0.95,
-              filter: 'blur(0px)',
-              z: 0,
-              transformOrigin: 'center center'
-            },
-            { 
-              y: currentY,
-              opacity: 1,
-              scale: 1,
-              filter: 'blur(0px)',
-              z: 0,
-              duration: 0.4,
-              ease: 'power2.out'
-            },
-            0.1
-          );
-        } else {
-          // Existierende Nachrichten nach oben schieben
-          tl.to(element, {
-            y: currentY,
-            opacity: 1,
-            scale: 1,
-            filter: 'blur(0px)',
-            z: 0,
-            duration: 0.4,
-            ease: 'power2.inOut'
-          }, 0);
-        }
-        
-        currentY += elementHeight + messageSpacing;
-      } else if (index < startIndex) {
-        // Ältere Nachrichten ausblenden
-        tl.to(element, {
-          y: -100,
-          opacity: 0,
-          scale: 0.9,
-          filter: 'blur(8px)',
-          z: -200,
-          duration: 0.4,
-          ease: 'power2.inOut'
-        }, 0);
-      }
-    });
-
-    if (!isPlaying) {
-      tl.pause();
-    }
-  };
+  }, [isPlaying]);
 
   const playMessageSound = (index: number) => {
     const isEven = index % 2 === 0;
     const audio = isEven ? audioRef1.current : audioRef2.current;
     
     if (audio) {
-      audio.currentTime = 0; // Reset Audio
+      audio.currentTime = 0;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(error => console.log('Audio playback failed:', error));
@@ -305,6 +231,8 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete, isActive = false }) =
   };
 
   const handleReplay = () => {
+    if (!timelineRef.current || !commentsRef.current) return;
+
     if (replayButtonRef.current) {
       gsap.to(replayButtonRef.current, {
         opacity: 0,
@@ -315,31 +243,30 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete, isActive = false }) =
       });
     }
     
-    if (commentsRef.current) {
-      const messageElements = Array.from(commentsRef.current.children);
-      messageElements.forEach((element) => {
-        gsap.set(element, {
-          opacity: 0,
-          y: window.innerHeight,
-          scale: 0.95,
-          filter: 'blur(0px)',
-          z: 0
-        });
+    // Reset aller Nachrichten
+    const messageElements = Array.from(commentsRef.current.children);
+    messageElements.forEach((element) => {
+      gsap.set(element, {
+        opacity: 0,
+        y: window.innerHeight,
+        display: 'flex',
+        scale: 1
       });
-    }
+    });
     
     currentIndexRef.current = 0;
-    
-    if (isPlaying) {
-      startMessageSequence();
-    }
+    timelineRef.current.restart();
+    controller?.play();
   };
 
   return (
-    <div ref={containerRef} className="chat-scene">
-      <div ref={commentsRef} className="comments-container">
+    <div className={`chat-scene ${isPlaying ? 'active' : ''}`}>
+      <div ref={commentsRef} className="chat-messages">
         {comments.map((comment, index) => (
-          <div key={index} className={`comment ${comment.isRight ? 'right' : 'left'}`}>
+          <div 
+            key={index} 
+            className={`comment ${comment.isRight ? 'right' : 'left'}`}
+          >
             <div className="avatar-container">
               <div className="avatar" />
             </div>
@@ -353,30 +280,35 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete, isActive = false }) =
           </div>
         ))}
       </div>
-      <button 
+      <button
         ref={replayButtonRef}
         className="replay-button"
-        aria-label="Konversation wiederholen"
         onClick={handleReplay}
         style={{ opacity: 0 }}
       >
-        <svg 
-          viewBox="0 0 24 24" 
-          width="24" 
-          height="24" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          fill="none" 
-          strokeLinecap="round" 
-          strokeLinejoin="round"
-        >
-          <polyline points="1 4 1 10 7 10"></polyline>
-          <path d="M3.51 15a9 9 0 1 0-2.13-9.36L1 10"></path>
-        </svg>
-        <span>Wiederholen</span>
+        Wiederholen
       </button>
     </div>
   );
 };
 
-export default ChatScene; 
+const WrappedChatScene = withSceneControl(ChatScene, {
+  setupScene: (controller) => {
+    return {
+      onEnter: () => {
+        controller.play();
+      },
+      onLeave: () => {
+        controller.pause();
+      },
+      onEnterBack: () => {
+        controller.play();
+      },
+      onLeaveBack: () => {
+        controller.pause();
+      }
+    };
+  }
+});
+
+export default WrappedChatScene; 

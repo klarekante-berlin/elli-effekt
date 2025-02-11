@@ -6,32 +6,34 @@ import transcriptData from '../transciption_data/transcript_elli_scene_01.json';
 import '../styles/AudioScene.css';
 import { useGSAP } from '@gsap/react';
 import { useApp, SceneId } from '../context/AppContext';
+import { withSceneControl, BaseSceneProps, SceneController } from '../hoc/withSceneControl';
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
-interface AudioSceneProps {
+interface AudioSceneProps extends BaseSceneProps {
+  controller?: SceneController;
+  isPlaying?: boolean;
   onAnimationComplete?: () => void;
-  isAnimationScene: boolean;
-  setIsAnimationScene: (value: boolean) => void;
+  isAnimationScene?: boolean;
+  setIsAnimationScene?: (value: boolean) => void;
   isActive?: boolean;
 }
 
 const AudioScene: React.FC<AudioSceneProps> = ({
-  onAnimationComplete,
-  isAnimationScene,
-  setIsAnimationScene,
-  isActive = false
+  id,
+  controller,
+  onComplete,
+  isPlaying = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const splitRef = useRef<SplitType | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const { state, dispatch } = useApp();
+  const { dispatch } = useApp();
   const sceneId: SceneId = 'audio-scene';
 
   // Audio laden und initialisieren
@@ -180,9 +182,6 @@ const AudioScene: React.FC<AudioSceneProps> = ({
     };
 
     const handleEnded = () => {
-      setIsPlaying(false);
-      setProgress(100);
-      setIsAnimationScene(false);
       dispatch({
         type: 'UPDATE_SCENE_STATE',
         payload: {
@@ -190,45 +189,20 @@ const AudioScene: React.FC<AudioSceneProps> = ({
           updates: { isComplete: true, isActive: false }
         }
       });
-      if (onAnimationComplete) {
-        onAnimationComplete();
+      if (onComplete) {
+        onComplete();
       }
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
 
-    if (isActive && state.currentScene === sceneId) {
-      setIsPlaying(true);
-      setIsAnimationScene(true);
-      dispatch({
-        type: 'UPDATE_SCENE_STATE',
-        payload: {
-          sceneId,
-          updates: { isActive: true, isAnimated: true }
-        }
-      });
+    if (isPlaying) {
       audio.play().catch(error => {
         console.warn('Audio autoplay failed:', error);
-        dispatch({
-          type: 'UPDATE_SCENE_STATE',
-          payload: {
-            sceneId,
-            updates: { isActive: false, isAnimated: false }
-          }
-        });
       });
       timeline.play();
     } else {
-      setIsPlaying(false);
-      setIsAnimationScene(false);
-      dispatch({
-        type: 'UPDATE_SCENE_STATE',
-        payload: {
-          sceneId,
-          updates: { isActive: false, isAnimated: false }
-        }
-      });
       audio.pause();
       timeline.pause();
     }
@@ -237,39 +211,18 @@ const AudioScene: React.FC<AudioSceneProps> = ({
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [isActive, isLoaded, onAnimationComplete, setIsAnimationScene, dispatch, state.currentScene]);
+  }, [isPlaying, isLoaded, onComplete, dispatch]);
 
   const togglePlay = () => {
-    if (!audioRef.current || !timelineRef.current) return;
-    
     if (isPlaying) {
-      audioRef.current.pause();
-      timelineRef.current.pause();
-      setIsAnimationScene(false);
-      dispatch({
-        type: 'UPDATE_SCENE_STATE',
-        payload: {
-          sceneId,
-          updates: { isActive: false, isAnimated: false }
-        }
-      });
+      controller?.pause();
     } else {
-      audioRef.current.play();
-      timelineRef.current.play();
-      setIsAnimationScene(true);
-      dispatch({
-        type: 'UPDATE_SCENE_STATE',
-        payload: {
-          sceneId,
-          updates: { isActive: true, isAnimated: true }
-        }
-      });
+      controller?.play();
     }
-    setIsPlaying(!isPlaying);
   };
 
   return (
-    <div ref={containerRef} className={`audio-scene ${isActive ? 'active' : ''}`}>
+    <div ref={containerRef} className={`audio-scene ${isPlaying ? 'active' : ''}`}>
       <div ref={textContainerRef} className="text-container" />
       <div className="audio-container">
         <audio
@@ -308,4 +261,23 @@ const AudioScene: React.FC<AudioSceneProps> = ({
   );
 };
 
-export default AudioScene; 
+const WrappedAudioScene = withSceneControl(AudioScene, {
+  setupScene: (controller) => {
+    return {
+      onEnter: () => {
+        controller.play();
+      },
+      onLeave: () => {
+        controller.pause();
+      },
+      onEnterBack: () => {
+        controller.play();
+      },
+      onLeaveBack: () => {
+        controller.pause();
+      }
+    };
+  }
+});
+
+export default WrappedAudioScene; 

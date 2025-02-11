@@ -40,10 +40,10 @@ const App: React.FC = () => {
     navigateToScene('chat-scene');
   };
 
-  const handleChatComplete = () => {
+/*   const handleChatComplete = () => {
     setIsAnimationScene(false);
     navigateToScene('avocado-scene');
-  };
+  }; */
 
   return (
     <AppProvider>
@@ -56,6 +56,7 @@ const App: React.FC = () => {
 
           <Section height="100vh" id="audio-scene">
             <AudioScene 
+              id="audio-scene"
               onAnimationComplete={handleAudioComplete}
               isAnimationScene={isAnimationScene}
               setIsAnimationScene={setIsAnimationScene}
@@ -79,7 +80,8 @@ const App: React.FC = () => {
 
           <Section height="100vh" id="chat-scene">
             <ChatScene 
-              onComplete={handleChatComplete} 
+              id="chat-scene"
+              //onComplete={handleChatComplete} 
               isActive={currentScene === 'chat-scene' && !isTransitioning}
             />
           </Section>
