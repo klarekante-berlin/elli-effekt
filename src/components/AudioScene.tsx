@@ -4,14 +4,21 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import SplitType from 'split-type';
 import transcriptData from '../transciption_data/transcript_elli_scene_01.json';
 import '../styles/AudioScene.css';
+import { useGSAP } from '@gsap/react';
 
-gsap.registerPlugin(ScrollTrigger);
+gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 interface AudioSceneProps {
-  onAnimationComplete?: () => void;
+  onAnimationComplete: () => void;
+  isAnimationScene: boolean;
+  setIsAnimationScene: (value: boolean) => void;
 }
 
-const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
+const AudioScene: React.FC<AudioSceneProps> = ({ 
+  onAnimationComplete,
+  isAnimationScene,
+  setIsAnimationScene
+}) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
@@ -19,6 +26,7 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
   const [isAudioLoaded, setIsAudioLoaded] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Audio laden und vorbereiten
   useEffect(() => {
@@ -284,8 +292,38 @@ const AudioScene: React.FC<AudioSceneProps> = ({ onAnimationComplete }) => {
     };
   }, [onAnimationComplete]);
 
+  useGSAP(() => {
+    if (!containerRef.current) return;
+
+    const timeline = gsap.timeline({
+      scrollTrigger: {
+        trigger: containerRef.current,
+        start: 'top center',
+        end: 'bottom center',
+        scrub: true,
+        onEnter: () => setIsAnimationScene(true),
+        onLeave: () => setIsAnimationScene(false),
+        onEnterBack: () => setIsAnimationScene(true),
+        onLeaveBack: () => setIsAnimationScene(false)
+      }
+    });
+
+    // Animation Timeline hier...
+    timeline
+      .to('.audio-element', {
+        scale: 1.2,
+        duration: 1
+      })
+      .to('.audio-element', {
+        scale: 1,
+        duration: 1
+      });
+
+    return () => timeline.kill();
+  }, { scope: containerRef });
+
   return (
-    <div id="audio-scene" className="audio-scene">
+    <div ref={containerRef} className="audio-scene">
       <div className="text-container" ref={textContainerRef} />
       <audio 
         ref={audioRef} 

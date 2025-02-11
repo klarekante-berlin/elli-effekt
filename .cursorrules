@@ -1,5 +1,13 @@
 # Elli-Effekt Project Development Guidelines 2.0
 # A comprehensive guide for development with React, TypeScript, GSAP, Zustand, and Web Core Vitals
+# IMPORTANT FOR IMPORTS AND INSTALLS
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ReactLenis, useLenis } from 'lenis/react'
+gsap.registerPlugin(useGSAP);
+
+npm install lenis
 
 # 1. Core Development Philosophy
 - Clean Code and maintainability are top priorities
@@ -423,8 +431,7 @@ const Scene: FC<SceneProps> = ({ id }) => {
 1. Import und Setup
 ```typescript
 import { ReactLenis, useLenis } from 'lenis/react'
-// oder
-import { ReactLenis, useLenis } from '@studio-freight/lenis'
+
 ```
 
 2. Komponenten-Integration
