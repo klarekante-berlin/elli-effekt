@@ -7,9 +7,9 @@ interface ScrollSnappingOptions {
   easing?: (t: number) => number;
 }
 
-const DEFAULT_OPTIONS: ScrollSnappingOptions = {
-  threshold: 50,
-  duration: 1.5,
+const DEFAULT_OPTIONS: Required<ScrollSnappingOptions> = {
+  threshold: 400,
+  duration: 1.2,
   easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t))
 };
 
@@ -19,39 +19,59 @@ export const useScrollSnapping = (
 ) => {
   const [isScrolling, setIsScrolling] = useState(false);
   const [isAnimationScene, setIsAnimationScene] = useState(false);
+  const [lastScrollPosition, setLastScrollPosition] = useState(0);
 
   const handleScroll = useCallback(({ scroll, velocity }: { scroll: number; velocity: number }) => {
-    if (isScrolling || isAnimationScene || Math.abs(velocity) > 0.1) return;
+    if (!lenisInstance || isScrolling || isAnimationScene || Math.abs(velocity) > 0.1) {
+      setLastScrollPosition(scroll);
+      return;
+    }
 
-    const sections = document.querySelectorAll('.section');
+    const scenes = Array.from(document.querySelectorAll<HTMLDivElement>('.scene'));
     const currentScrollPosition = scroll;
-    
-    let closestSection = null;
+    const scrollingUp = currentScrollPosition < lastScrollPosition;
+    const viewportHeight = window.innerHeight;
+    const triggerPoint = viewportHeight * 0.5;
+
+    let closestSnapScene: HTMLDivElement | null = null;
     let minDistance = Infinity;
-    
-    sections.forEach((section) => {
-      const rect = section.getBoundingClientRect();
-      const sectionTop = currentScrollPosition + rect.top;
-      const distance = Math.abs(currentScrollPosition - sectionTop);
-      
-      if (distance < minDistance) {
+
+    scenes.forEach((scene) => {
+      if (!scene.classList.contains('snap-scene')) return;
+
+      const rect = scene.getBoundingClientRect();
+      const sceneCenter = rect.top + rect.height / 2;
+      const distance = Math.abs(sceneCenter - triggerPoint);
+
+      const isInDirection = scrollingUp ? 
+        (rect.bottom > 0 && rect.top < triggerPoint) : 
+        (rect.top < viewportHeight && rect.bottom > triggerPoint);
+
+      if (isInDirection && distance < minDistance) {
         minDistance = distance;
-        closestSection = section;
+        closestSnapScene = scene;
       }
     });
-    
-    if (closestSection && minDistance > (options.threshold || DEFAULT_OPTIONS.threshold) && lenisInstance) {
+
+    const threshold = options.threshold ?? DEFAULT_OPTIONS.threshold;
+
+    if (closestSnapScene && minDistance < threshold) {
       setIsScrolling(true);
-      lenisInstance.scrollTo(closestSection, {
-        duration: options.duration,
-        easing: options.easing
-      });
+      const targetElement = closestSnapScene as HTMLDivElement;
       
+      lenisInstance.scrollTo(targetElement, {
+        duration: options.duration ?? DEFAULT_OPTIONS.duration,
+        easing: options.easing ?? DEFAULT_OPTIONS.easing,
+        offset: -(viewportHeight - targetElement.offsetHeight) / 2
+      });
+
       setTimeout(() => {
         setIsScrolling(false);
-      }, (options.duration || DEFAULT_OPTIONS.duration) * 1000);
+      }, (options.duration ?? DEFAULT_OPTIONS.duration) * 1000);
     }
-  }, [isScrolling, isAnimationScene, lenisInstance, options]);
+
+    setLastScrollPosition(currentScrollPosition);
+  }, [isScrolling, isAnimationScene, lenisInstance, options, lastScrollPosition]);
 
   useEffect(() => {
     if (!lenisInstance) return;
