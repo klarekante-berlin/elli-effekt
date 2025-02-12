@@ -1,5 +1,13 @@
 # Elli-Effekt Project Development Guidelines 2.0
 # A comprehensive guide for development with React, TypeScript, GSAP, Zustand, and Web Core Vitals
+# IMPORTANT FOR IMPORTS AND INSTALLS
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ReactLenis, useLenis } from 'lenis/react'
+gsap.registerPlugin(useGSAP);
+
+npm install lenis
 
 # 1. Core Development Philosophy
 - Clean Code and maintainability are top priorities
@@ -214,137 +222,7 @@ export const Component: FC<IComponentProps> = memo(({ props }) => {
 - Bundle size monitoring
 - Performance monitoring
 
-# 7. Lenis Smooth Scrolling Standards
-@Lenis @React @GSAP
-
-## Import Standards
-```typescript
-// Korrekte Import-Anweisung (WICHTIG: Nicht mehr @studio-freight/lenis verwenden)
-import { ReactLenis } from 'lenis/react'
-```
-
-## GSAP Integration
-```typescript
-import gsap from 'gsap'
-import { ReactLenis } from 'lenis/react'
-import { useEffect, useRef } from 'react'
-
-function App() {
-  const lenisRef = useRef()
-  
-  useEffect(() => {
-    function update(time) {
-      lenisRef.current?.lenis?.raf(time * 1000)
-    }
-  
-    gsap.ticker.add(update)
-    return () => gsap.ticker.remove(update)
-  }, [])
-  
-  return (
-    <ReactLenis options={{ autoRaf: false }} ref={lenisRef}>
-      { /* content */ }
-    </ReactLenis>
-  )
-}
-```
-
-## Best Practices
-- Immer `autoRaf: false` bei GSAP Integration verwenden
-- Proper Cleanup in useEffect durchführen
-- RAF-Loop Optimierung beachten
-- Korrekte TypeScript Typen verwenden
-
-## Scroll-Snapping mit Lenis und ScrollTrigger
-```typescript
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { ReactLenis } from 'lenis/react'
-import { useRef, useEffect } from 'react'
-
-// Scroll-Snapping Hook
-const useScrollSnapping = () => {
-  const lenisRef = useRef()
-  
-  useEffect(() => {
-    // GSAP ScrollTrigger Setup
-    const triggers = gsap.utils.toArray('.snap-section').map((section: HTMLElement) => {
-      return ScrollTrigger.create({
-        trigger: section,
-        start: 'top center',
-        end: 'bottom center',
-        onToggle: (self) => {
-          if (self.isActive) {
-            // Nutze Lenis scrollTo statt GSAP ScrollToPlugin
-            lenisRef.current?.lenis?.scrollTo(section, {
-              offset: window.innerHeight / 2 - section.offsetHeight / 2,
-              immediate: false,
-              duration: 1.5,
-              easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t))
-            })
-          }
-        }
-      })
-    })
-
-    return () => {
-      triggers.forEach(trigger => trigger.kill())
-    }
-  }, [])
-
-  return lenisRef
-}
-
-// Komponenten-Integration
-function App() {
-  const lenisRef = useScrollSnapping()
-  
-  useEffect(() => {
-    function update(time) {
-      lenisRef.current?.lenis?.raf(time * 1000)
-    }
-  
-    gsap.ticker.add(update)
-    return () => gsap.ticker.remove(update)
-  }, [])
-  
-  return (
-    <ReactLenis ref={lenisRef} options={{ duration: 1.5, smoothWheel: true, autoRaf: false }}>
-      <div className="snap-section">Section 1</div>
-      <div className="snap-section">Section 2</div>
-      <div className="snap-section">Section 3</div>
-    </ReactLenis>
-  )
-}
-```
-
-## Best Practices für Scroll-Snapping
-- Verwende Lenis `scrollTo` statt GSAP ScrollToPlugin
-- Implementiere sanfte Übergänge mit angepasster `duration` und `easing`
-- Berechne korrekte Offset-Werte für zentriertes Snapping
-- Berücksichtige Viewport-Höhe und Element-Höhe
-- Vermeide Race Conditions zwischen ScrollTrigger und Lenis
-- Stelle sicher, dass Cleanup korrekt durchgeführt wird
-
-## Scroll-Snapping Konfiguration
-```typescript
-interface ScrollSnapOptions {
-  offset?: number;      // Offset für zentriertes Snapping
-  duration?: number;    // Dauer der Scroll-Animation
-  immediate?: boolean;  // Sofortiges Snapping ohne Animation
-  easing?: (t: number) => number; // Easing-Funktion
-}
-
-// Empfohlene Konfiguration
-const defaultSnapOptions: ScrollSnapOptions = {
-  offset: 0,
-  duration: 1.5,
-  immediate: false,
-  easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t))
-}
-```
-
-# 8. Testing Standards
+# 7. Testing Standards
 ## Unit Tests
 ```typescript
 describe('Component', () => {
@@ -368,7 +246,7 @@ describe('Component', () => {
 - Performance tests
 - A11y tests
 
-# 9. Code Style
+# 8. Code Style
 ## General
 - Indentation: 2 spaces
 - Maximum line length: 100
@@ -382,7 +260,7 @@ describe('Component', () => {
 - Interfaces: IPascalCase
 - Types: TPascalCase
 
-# 10. Development Workflow
+# 9. Development Workflow
 ## Chain of Thought
 1. Requirements analysis
 2. Implementation planning
@@ -397,7 +275,7 @@ describe('Component', () => {
 - Tests (Coverage, Edge cases)
 - Documentation (JSDoc, README, API docs)
 
-# 11. Store Management and Zustand
+# 10. Store Management and Zustand
 @Zustand @React @TypeScript
 
 ## Store Architecture
@@ -546,15 +424,14 @@ const Scene: FC<SceneProps> = ({ id }) => {
 - User feedback
 - Logging and monitoring
 
-# 12. Smooth Scrolling mit Lenis
+# 11. Smooth Scrolling mit Lenis
 @Lenis @React @TypeScript
 
 ## Lenis Integration Best Practices
 1. Import und Setup
 ```typescript
 import { ReactLenis, useLenis } from 'lenis/react'
-// oder
-import { ReactLenis, useLenis } from '@studio-freight/lenis'
+
 ```
 
 2. Komponenten-Integration

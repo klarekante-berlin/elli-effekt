@@ -1,11 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useApp, SceneId } from '../context/AppContext';
+import { withSceneControl, BaseSceneProps, SceneController } from '../hoc/withSceneControl';
+import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import '../styles/ChatScene.css';
+import { Flip } from 'gsap/Flip';
 import messageSound1 from '../assets/audio_effects/message_01.wav';
 import messageSound2 from '../assets/audio_effects/message_02.wav';
+import '../styles/ChatScene.css';
 
-gsap.registerPlugin(ScrollTrigger);
+// GSAP Plugins registrieren
+gsap.registerPlugin(ScrollTrigger, Flip);
 
 interface Comment {
   text: string;
@@ -32,307 +37,404 @@ const comments: Comment[] = [
   { text: 'Zum kotzen!!', name: 'EcoRage', timestamp: '14:29', isRight: false }
 ];
 
-interface ChatSceneProps {
-  onComplete?: () => void;
+interface ChatSceneProps extends BaseSceneProps {
+  controller?: SceneController;
+  isPlaying?: boolean;
 }
 
-const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
+export const ChatScene: React.FC<ChatSceneProps> = ({
+  id,
+  controller,
+  onComplete,
+  isPlaying = false
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const commentsRef = useRef<HTMLDivElement>(null);
   const replayButtonRef = useRef<HTMLButtonElement>(null);
   const currentIndexRef = useRef(0);
-  const timelineRef = useRef<gsap.core.Timeline | null>(null);
+  const mainTimelineRef = useRef<gsap.core.Timeline | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const visibleMessagesCount = 5;
-  
-  // Audio Refs
   const audioRef1 = useRef<HTMLAudioElement | null>(null);
   const audioRef2 = useRef<HTMLAudioElement | null>(null);
+  const { dispatch } = useApp();
+  const sceneId: SceneId = 'chat-scene';
+  const visibleMessagesCount = 6;
+  const [visibleComments, setVisibleComments] = useState<Comment[]>([]);
 
-  // Audio Setup
+  // Funktion zum Aufräumen des Intervalls
+  const clearMessageInterval = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  // Aufräumen beim Unmount
   useEffect(() => {
+    return () => {
+      clearMessageInterval();
+      if (mainTimelineRef.current) {
+        mainTimelineRef.current.kill();
+      }
+    };
+  }, [clearMessageInterval]);
+
+  // Audio Setup mit useGSAP
+  const { contextSafe: audioContextSafe } = useGSAP(() => {
+    // Audio-Objekte erstellen und konfigurieren
     audioRef1.current = new Audio(messageSound1);
     audioRef2.current = new Audio(messageSound2);
     
     if (audioRef1.current) audioRef1.current.volume = 0.4;
     if (audioRef2.current) audioRef2.current.volume = 0.4;
 
-    if (audioRef1.current) audioRef1.current.preload = 'auto';
-    if (audioRef2.current) audioRef2.current.preload = 'auto';
+    // Preload der Audio-Dateien
+    audioRef1.current?.load();
+    audioRef2.current?.load();
 
     return () => {
-      if (audioRef1.current) audioRef1.current = null;
-      if (audioRef2.current) audioRef2.current = null;
+      // Korrekte Cleanup der Audio-Ressourcen
+      if (audioRef1.current) {
+        audioRef1.current.pause();
+        audioRef1.current.src = '';
+        audioRef1.current = null;
+      }
+      if (audioRef2.current) {
+        audioRef2.current.pause();
+        audioRef2.current.src = '';
+        audioRef2.current = null;
+      }
     };
-  }, []);
+  }, { scope: containerRef });
 
-  // Initial Setup - Hide all messages
-  useEffect(() => {
-    if (!commentsRef.current) return;
+  const playMessageSound = audioContextSafe((index: number) => {
+    const audio = index % 2 === 0 ? audioRef1.current : audioRef2.current;
     
-    const messageElements = Array.from(commentsRef.current.children);
-    messageElements.forEach((element) => {
-      gsap.set(element, {
-        opacity: 0,
-        y: window.innerHeight,
-        scale: 0.95,
-        filter: 'blur(0px)',
-        z: 0
-      });
-    });
-  }, []);
-
-  // ScrollTrigger Setup
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const trigger = ScrollTrigger.create({
-      trigger: containerRef.current,
-      start: 'top center',
-      end: 'bottom center',
-      onEnter: () => {
-        setIsPlaying(true);
-      },
-      onLeave: () => {
-        setIsPlaying(false);
-      },
-      onEnterBack: () => {
-        setIsPlaying(true);
-      },
-      onLeaveBack: () => {
-        setIsPlaying(false);
-      }
-    });
-
-    return () => {
-      trigger.kill();
-      clearMessageInterval();
-    };
-  }, []);
-
-  // Handle animation state changes
-  useEffect(() => {
-    if (isPlaying) {
-      if (currentIndexRef.current === 0) {
-        startMessageSequence();
-      } else {
-        resumeMessageSequence();
-      }
-    } else {
-      pauseMessageSequence();
+    if (audio) {
+      // Audio zurücksetzen und abspielen
+      audio.currentTime = 0;
+      audio.play().catch(error => console.log('Audio playback failed:', error));
     }
-  }, [isPlaying]);
+  });
 
-  const clearMessageInterval = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  };
-
-  const startMessageSequence = () => {
-    animateMessages(currentIndexRef.current);
-    
-    clearMessageInterval();
-    
-    intervalRef.current = setInterval(() => {
-      if (currentIndexRef.current < comments.length - 1) {
-        currentIndexRef.current++;
-        animateMessages(currentIndexRef.current);
-      } else {
-        clearMessageInterval();
-        showReplayButton();
-        if (onComplete) onComplete();
-      }
-    }, 2000);
-  };
-
-  const pauseMessageSequence = () => {
-    clearMessageInterval();
-    if (timelineRef.current) {
-      timelineRef.current.pause();
-    }
-  };
-
-  const resumeMessageSequence = () => {
-    if (timelineRef.current) {
-      timelineRef.current.play();
-      startMessageSequence();
-    }
-  };
-
-  const animateMessages = (currentIndex: number) => {
-    if (!containerRef.current || !commentsRef.current) return;
-
-    playMessageSound(currentIndex);
-
-    const messageElements = Array.from(commentsRef.current.children);
-    const messageSpacing = 30;
-    const topPadding = 40;
-    
-    if (timelineRef.current) {
-      timelineRef.current.kill();
-    }
-    
-    const tl = gsap.timeline({
-      paused: !isPlaying,
+  // Animation Context
+  const { contextSafe } = useGSAP(() => {
+    // Haupttimeline erstellen
+    mainTimelineRef.current = gsap.timeline({
+      paused: true,
       defaults: {
         ease: 'power2.out',
         duration: 0.4
       }
     });
+
+    return () => {
+      if (mainTimelineRef.current) {
+        mainTimelineRef.current.kill();
+      }
+    };
+  }, { scope: containerRef });
+
+  // Animationsfunktionen
+  const animateMessageOut = contextSafe((element: HTMLElement) => {
+    console.log('🎭 Message Out Animation startet', { element });
     
-    timelineRef.current = tl;
-
-    // Berechne Start- und Endindex für sichtbare Nachrichten
-    const startIndex = Math.max(0, currentIndex - visibleMessagesCount + 1);
-    const endIndex = currentIndex;
-    let currentY = topPadding;
-
-    // Fade out älteste Nachricht
-    if (startIndex > 0) {
-      const oldestMessage = messageElements[startIndex - 1];
-      tl.to(oldestMessage, {
-        y: -60,
-        opacity: 0,
-        scale: 0.95,
-        filter: 'blur(4px)',
-        z: -100,
-        transformOrigin: 'center center',
-        duration: 0.4,
-        ease: 'power2.inOut'
-      }, 0);
-    }
-
-    // Positioniere sichtbare Nachrichten
-    messageElements.forEach((element, index) => {
-      if (index >= startIndex && index <= endIndex) {
-        const elementHeight = (element as HTMLElement).offsetHeight || 80;
-        
-        if (index === currentIndex) {
-          // Neue Nachricht einblenden
-          tl.fromTo(element,
-            { 
-              y: window.innerHeight,
-              opacity: 0,
-              scale: 0.95,
-              filter: 'blur(0px)',
-              z: 0,
-              transformOrigin: 'center center'
-            },
-            { 
-              y: currentY,
-              opacity: 1,
-              scale: 1,
-              filter: 'blur(0px)',
-              z: 0,
-              duration: 0.4,
-              ease: 'power2.out'
-            },
-            0.1
-          );
-        } else {
-          // Existierende Nachrichten nach oben schieben
-          tl.to(element, {
-            y: currentY,
-            opacity: 1,
-            scale: 1,
-            filter: 'blur(0px)',
-            z: 0,
-            duration: 0.4,
-            ease: 'power2.inOut'
-          }, 0);
-        }
-        
-        currentY += elementHeight + messageSpacing;
-      } else if (index < startIndex) {
-        // Ältere Nachrichten ausblenden
-        tl.to(element, {
-          y: -100,
-          opacity: 0,
-          scale: 0.9,
-          filter: 'blur(8px)',
-          z: -200,
-          duration: 0.4,
-          ease: 'power2.inOut'
-        }, 0);
+    const tl = gsap.timeline({
+      defaults: { 
+        ease: "power3.inOut",
+        duration: 0.8
       }
     });
 
-    if (!isPlaying) {
-      tl.pause();
-    }
-  };
+    tl.to(element, {
+      opacity: 0,
+      y: -100,
+      scale: 0.8,
+      z: -100,
+      rotateX: -45,
+      transformOrigin: "50% 50% -100",
+      onComplete: () => console.log('🎭 Message Out Animation abgeschlossen')
+    });
 
-  const playMessageSound = (index: number) => {
-    const isEven = index % 2 === 0;
-    const audio = isEven ? audioRef1.current : audioRef2.current;
+    return tl;
+  });
+
+  const animateMessagesUp = contextSafe((elements: HTMLElement[]) => {
+    if (!elements.length) {
+      console.log('⚠️ Keine Elemente für Up-Animation gefunden');
+      return gsap.timeline();
+    }
+
+    console.log('🎭 Messages Up Animation startet', { elementCount: elements.length });
     
-    if (audio) {
-      audio.currentTime = 0; // Reset Audio
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => console.log('Audio playback failed:', error));
+    // Berechne die tatsächliche Höhe des ersten Elements
+    const messageHeight = elements[0]?.offsetHeight || 80;
+    console.log('📏 Berechnete Nachrichtenhöhe:', messageHeight);
+
+    // Timeline für die Animation
+    const tl = gsap.timeline({
+      onStart: () => console.log('🎬 Messages Up Animation startet'),
+      onComplete: () => console.log('✅ Messages Up Animation abgeschlossen'),
+      onInterrupt: () => console.log('⚠️ Messages Up Animation unterbrochen')
+    });
+
+    try {
+      // Setze Container-Style für besseres Overflow-Handling
+      if (commentsRef.current) {
+        gsap.set(commentsRef.current, {
+          height: `${messageHeight * visibleMessagesCount}px`,
+          overflow: 'hidden'
+        });
       }
-    }
-  };
 
-  const showReplayButton = () => {
-    if (replayButtonRef.current) {
-      gsap.fromTo(replayButtonRef.current,
-        {
-          opacity: 0,
-          y: 20,
-          scale: 0.9
-        },
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 0.5,
-          ease: 'back.out(1.7)'
-        }
-      );
-    }
-  };
-
-  const handleReplay = () => {
-    if (replayButtonRef.current) {
-      gsap.to(replayButtonRef.current, {
-        opacity: 0,
-        y: 20,
-        scale: 0.9,
-        duration: 0.3,
-        ease: 'power2.in'
-      });
-    }
-    
-    if (commentsRef.current) {
-      const messageElements = Array.from(commentsRef.current.children);
-      messageElements.forEach((element) => {
-        gsap.set(element, {
-          opacity: 0,
-          y: window.innerHeight,
-          scale: 0.95,
-          filter: 'blur(0px)',
-          z: 0
+      // Setze initiale Styles für smooth transition
+      elements.forEach((el, i) => {
+        gsap.set(el, {
+          position: 'relative',
+          zIndex: 1,
+          overflow: 'visible',
+          immediateRender: true
         });
       });
+
+      // Animiere jedes Element einzeln
+      elements.forEach((el, i) => {
+        tl.to(el, {
+          y: `-=${messageHeight}`,
+          duration: 0.5,
+          ease: "power2.inOut",
+          clearProps: "zIndex", // Cleanup nach Animation
+          onStart: () => {
+            gsap.set(el, { zIndex: 10 + i }); // Sicherstellen, dass keine Überlappung stattfindet
+          }
+        }, i * 0.08); // Leichte Verzögerung zwischen den Elementen
+      });
+
+      // Zusätzliche visuelle Effekte für smoothere Bewegung
+      elements.forEach((el, i) => {
+        tl.to(el, {
+          scale: 0.98,
+          duration: 0.2,
+          ease: "power1.in"
+        }, i * 0.08)
+        .to(el, {
+          scale: 1,
+          duration: 0.3,
+          ease: "power1.out"
+        }, `>-0.1`);
+      });
+
+    } catch (error) {
+      console.warn('❌ Messages Up Animation fehlgeschlagen:', error);
+      // Einfache Fallback Animation
+      elements.forEach((el, i) => {
+        tl.to(el, {
+          y: `-=${messageHeight}`,
+          duration: 0.5,
+          ease: "power2.inOut",
+          delay: i * 0.08
+        }, 0);
+      });
     }
+
+    return tl;
+  });
+
+  const animateMessageIn = contextSafe((element: HTMLElement) => {
+    console.log('🎭 Message In Animation startet', { element });
     
+    const tl = gsap.timeline({
+      defaults: {
+        ease: 'back.out(1.2)',
+        duration: 0.8
+      }
+    });
+
+    tl.fromTo(element,
+      { 
+        opacity: 0,
+        y: 80,
+        scale: 0.8,
+        z: -100
+      },
+      { 
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        z: 0,
+        onComplete: () => console.log('🎭 Message In Animation abgeschlossen')
+      }
+    );
+
+    return tl;
+  });
+
+  const animateMessages = contextSafe((currentIndex: number) => {
+    if (!commentsRef.current || currentIndex >= comments.length) {
+      console.log('⚠️ Animation nicht möglich: Ungültiger Index oder fehlende Referenz');
+      return;
+    }
+
+    console.log('🎬 Neue Nachricht Animation startet', { currentIndex });
+    
+    const mainTl = gsap.timeline({
+      defaults: {
+        ease: 'power2.out',
+        duration: 0.4
+      }
+    });
+
+    playMessageSound(currentIndex);
+    
+    // Erste 6 Nachrichten
+    if (currentIndex < visibleMessagesCount) {
+      setVisibleComments(prev => [...prev, comments[currentIndex]]);
+      
+      requestAnimationFrame(() => {
+        const messageElements = Array.from(commentsRef.current?.children || []);
+        const currentElement = messageElements[currentIndex] as HTMLElement;
+        
+        if (currentElement) {
+          mainTl.add(animateMessageIn(currentElement));
+        }
+      });
+      
+      return;
+    }
+
+    // Ab der 7. Nachricht
+    const newComment = comments[currentIndex];
+    const messageElements = Array.from(commentsRef.current?.children || []) as HTMLElement[];
+    
+    if (messageElements.length === 0) return;
+
+    // Oberste Nachricht ausblenden
+    if (messageElements[0]) {
+      mainTl.add(animateMessageOut(messageElements[0]));
+    }
+
+    mainTl.addLabel('exitComplete', '+=0.4');
+
+    // State aktualisieren und Up-Animation vorbereiten
+    mainTl.call(() => {
+      setVisibleComments(prev => [...prev.slice(1), newComment]);
+      
+      requestAnimationFrame(() => {
+        // Wichtig: Wir nehmen alle Nachrichten außer der letzten (neue Nachricht)
+        const remainingMessages = Array.from(commentsRef.current?.children || []);
+        const messagesToAnimate = remainingMessages
+          .slice(0, remainingMessages.length - 1)
+          .map(el => el as HTMLElement);
+        
+        if (messagesToAnimate.length > 0) {
+          console.log('🔄 Starte Up-Animation für verbleibende Nachrichten', { count: messagesToAnimate.length });
+          mainTl.add(animateMessagesUp(messagesToAnimate), '+=0.1');
+        }
+
+        mainTl.addLabel('upComplete', '+=0.3');
+        
+        // Die neue Nachricht ist die letzte im Container
+        const newElement = commentsRef.current?.children[visibleMessagesCount - 1] as HTMLElement;
+        if (newElement) {
+          gsap.set(newElement, { 
+            opacity: 0,
+            y: 80,
+            scale: 0.8,
+            z: -100,
+            position: 'relative' // Wichtig für korrekte Positionierung
+          });
+          
+          mainTl.add(animateMessageIn(newElement), 'upComplete');
+        }
+      });
+    }, [], 'exitComplete');
+  });
+
+  // Play/Pause Control mit useGSAP
+  useGSAP(() => {
+    // Zuerst altes Intervall aufräumen
+    clearMessageInterval();
+
+    if (isPlaying) {
+      console.log('🎬 Starting chat scene animation');
+      
+      // Neues Intervall nur erstellen, wenn noch Nachrichten übrig sind
+      if (currentIndexRef.current < comments.length) {
+        intervalRef.current = setInterval(() => {
+          if (currentIndexRef.current < comments.length) {
+            animateMessages(currentIndexRef.current);
+            currentIndexRef.current++;
+          } else {
+            clearMessageInterval();
+            dispatch({
+              type: 'UPDATE_SCENE_STATE',
+              payload: { sceneId, updates: { isComplete: true } }
+            });
+            if (onComplete) onComplete();
+            gsap.to(replayButtonRef.current, {
+              opacity: 1,
+              duration: 0.5,
+              ease: 'power2.out'
+            });
+          }
+        }, 2000);
+      }
+
+      return () => clearMessageInterval();
+    }
+  }, { 
+    dependencies: [isPlaying, clearMessageInterval],
+    scope: containerRef,
+    revertOnUpdate: true
+  });
+
+  // Replay Handler
+  const handleReplay = contextSafe(() => {
+    if (!commentsRef.current) return;
+
+    console.log('🔄 Replaying chat scene');
+    
+    // Zuerst altes Intervall aufräumen
+    clearMessageInterval();
+    
+    // Animation des Replay-Buttons
+    gsap.to(replayButtonRef.current, {
+      opacity: 0,
+      duration: 0.3
+    });
+
+    // State und Index zurücksetzen
+    setVisibleComments([]);
     currentIndexRef.current = 0;
     
-    if (isPlaying) {
-      startMessageSequence();
-    }
-  };
+    // Kurze Verzögerung für React State Update
+    gsap.delayedCall(0.1, () => {
+      animateMessages(0);
+      currentIndexRef.current = 1;
+      
+      if (!isPlaying) {
+        controller?.play();
+      }
+    });
+  });
 
   return (
-    <div ref={containerRef} className="chat-scene">
-      <div ref={commentsRef} className="comments-container">
-        {comments.map((comment, index) => (
-          <div key={index} className={`comment ${comment.isRight ? 'right' : 'left'}`}>
+    <div className="chat-scene" ref={containerRef}>
+      <div 
+        ref={commentsRef} 
+        className="chat-messages"
+        style={{
+          position: 'relative',
+          height: '480px', // 6 * 80px (Standard-Nachrichtenhöhe)
+          overflow: 'hidden'
+        }}
+      >
+        {visibleComments.map((comment, index) => (
+          <div 
+            key={`${comment.name}-${index}`}
+            className={`comment ${comment.isRight ? 'right' : 'left'}`}
+            style={{ position: 'relative' }}
+          >
             <div className="avatar-container">
               <div className="avatar" />
             </div>
@@ -346,30 +448,39 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
           </div>
         ))}
       </div>
-      <button 
+      <button
         ref={replayButtonRef}
         className="replay-button"
-        aria-label="Konversation wiederholen"
         onClick={handleReplay}
         style={{ opacity: 0 }}
       >
-        <svg 
-          viewBox="0 0 24 24" 
-          width="24" 
-          height="24" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          fill="none" 
-          strokeLinecap="round" 
-          strokeLinejoin="round"
-        >
-          <polyline points="1 4 1 10 7 10"></polyline>
-          <path d="M3.51 15a9 9 0 1 0-2.13-9.36L1 10"></path>
-        </svg>
-        <span>Wiederholen</span>
+        Wiederholen
       </button>
     </div>
   );
 };
 
-export default ChatScene; 
+const WrappedChatScene = withSceneControl(ChatScene, {
+  setupScene: (controller) => {
+    return {
+      onEnter: () => {
+        console.log('🎭 Entering chat scene');
+        controller.play();
+      },
+      onLeave: () => {
+        console.log('👋 Leaving chat scene');
+        controller.pause();
+      },
+      onEnterBack: () => {
+        console.log('🔙 Re-entering chat scene');
+        controller.play();
+      },
+      onLeaveBack: () => {
+        console.log('↩️ Leaving chat scene backwards');
+        controller.pause();
+      }
+    };
+  }
+});
+
+export default WrappedChatScene; 

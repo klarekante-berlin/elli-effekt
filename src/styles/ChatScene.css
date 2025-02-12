@@ -1,106 +1,72 @@
 .chat-scene {
+  position: relative;
   width: 100%;
   height: 100vh;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 2rem;
-  position: relative;
-  overflow: hidden;
-  background-color: var(--background-dark);
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
   perspective: 1000px;
 }
 
-.comments-container {
-  max-width: 800px;
+.chat-messages {
   width: 100%;
-  height: calc(100vh - 100px);
+  max-width: 700px;
   position: relative;
-  padding: 2rem;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  justify-content: flex-start;
+  gap: 1rem;
+  margin-top: 1rem;
   transform-style: preserve-3d;
 }
 
 .comment {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transform-origin: center center;
-  will-change: transform, opacity, filter;
-  position: absolute;
-  width: calc(100% - 4rem);
+  width: 100%;
   max-width: 600px;
-  opacity: 0;
-  pointer-events: none;
+  padding: 1rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
   display: flex;
   gap: 1rem;
-  align-items: flex-start;
-  min-height: 60px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  transform-style: preserve-3d;
   backface-visibility: hidden;
-}
-
-.comment:nth-child(odd) {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.comment:nth-child(even) {
-  background: rgba(255, 255, 255, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  will-change: transform, opacity;
+  position: relative;
 }
 
 .comment.left {
-  left: 2rem;
-  margin-right: 20%;
+  align-self: flex-start;
+  margin-right: 10%;
+  left: 1rem;
 }
 
 .comment.right {
-  right: 2rem;
-  margin-left: 20%;
-  flex-direction: row-reverse;
-}
-
-.comment.left:nth-child(even) {
-  background: linear-gradient(to right, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
-}
-
-.comment.right:nth-child(even) {
-  background: linear-gradient(to left, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
-}
-
-.comment.visible {
-  opacity: 1;
-  pointer-events: all;
+  align-self: flex-end;
+  margin-left: 10%;
+  right: 1rem;
+  box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .avatar-container {
   flex-shrink: 0;
-  padding-top: 0.25rem;
+  width: 40px;
+  height: 40px;
 }
 
 .avatar {
-  width: 40px;
-  height: 40px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  position: relative;
-  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .message-content {
   flex-grow: 1;
-  max-width: calc(100% - 60px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
 }
 
 .message-header {
@@ -111,124 +77,31 @@
 }
 
 .name {
-  color: var(--text-primary);
-  font-size: 0.9rem;
   font-weight: 600;
-  opacity: 0.8;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .timestamp {
-  color: var(--text-primary);
   font-size: 0.8rem;
-  opacity: 0.6;
-  margin-left: 1rem;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .message-text {
-  color: var(--text-primary);
-  font-size: 1rem;
-  line-height: 1.5;
   margin: 0;
-  font-weight: 400;
-  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.4;
 }
 
 .replay-button {
-  position: fixed;
-  bottom: 3rem;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
+  padding: 0.8rem 2rem;
+  border: none;
+  border-radius: 30px;
   background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(10px);
-  padding: 1.25rem 2.5rem;
-  border-radius: 50px;
-  color: var(--text-primary);
-  font-size: 1.1rem;
+  color: white;
+  font-weight: 600;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  transition: all 0.3s ease;
-  opacity: 0;
-  z-index: 10;
-}
-
-.replay-button:hover {
-  background: rgba(255, 255, 255, 0.15);
-  transform: translateX(-50%) scale(1.05);
-}
-
-.replay-button svg {
-  width: 22px;
-  height: 22px;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .chat-scene {
-    padding: 1rem;
-  }
-
-  .comments-container {
-    padding: 1rem;
-  }
-
-  .comment {
-    padding: 1rem;
-    width: calc(100% - 2rem);
-  }
-
-  .comment.left {
-    left: 1rem;
-    margin-right: 10%;
-  }
-
-  .comment.right {
-    right: 1rem;
-    margin-left: 10%;
-  }
-
-  .avatar {
-    width: 32px;
-    height: 32px;
-  }
-
-  .message-content {
-    max-width: calc(100% - 48px);
-  }
-
-  .message-text {
-    font-size: 0.95rem;
-  }
-
-  .name {
-    font-size: 0.85rem;
-  }
-
-  .timestamp {
-    font-size: 0.75rem;
-  }
-
-  .replay-button {
-    bottom: 2rem;
-    padding: 1rem 2rem;
-    font-size: 1rem;
-  }
-}
-
-/* Animation Klassen */
-.comment.fade-in {
-  animation: fadeIn 0.5s ease forwards;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  margin-bottom: 1rem;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
 } 
