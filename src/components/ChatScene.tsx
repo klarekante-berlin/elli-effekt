@@ -83,8 +83,10 @@ const ChatScene: React.FC = () => {
 
     // Update state with new message
     setVisibleComments(prev => {
+      // Important: For the animation to work, we need to keep the top message
+      // in the DOM briefly while it animates out
       if (prev.length >= visibleMessagesCount) {
-        return [...prev.slice(1), newComment];
+        return [...prev, newComment];
       }
       return [...prev, newComment];
     });
@@ -121,15 +123,23 @@ const ChatScene: React.FC = () => {
           y: -messageHeight,
           scale: 0.8,
           duration: 0.4,
-          ease: 'power2.in'
+          ease: 'power2.in',
+          onComplete: () => {
+            // Remove the top message after its animation
+            setVisibleComments(prev => prev.slice(1));
+          }
         });
 
-        // 2. Shift up existing messages
+        // 2. Shift up existing messages with stagger
         const messagesToShift = messages.slice(1, -1);
         timeline.to(messagesToShift, {
           y: `-=${messageHeight}`,
-          duration: 0.5,
-          ease: 'power2.inOut'
+          duration: 0.6,
+          ease: 'power2.inOut',
+          stagger: {
+            amount: 0.3,
+            from: "start"
+          }
         }, '-=0.2');
 
         // 3. Animate in new message
