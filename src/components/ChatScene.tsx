@@ -5,6 +5,9 @@ import gsap from 'gsap';
 import messageSound1 from '../assets/audio_effects/message_01.wav';
 import messageSound2 from '../assets/audio_effects/message_02.wav';
 import '../styles/ChatScene.css';
+import { Flip } from 'gsap/Flip';
+
+gsap.registerPlugin(Flip);
 
 interface Comment {
   text: string;
@@ -72,124 +75,93 @@ const ChatScene: React.FC = () => {
     }
   }, []);
 
-  // Animation Funktionen
-  const animateMessageOut = useCallback((element: HTMLElement) => {
-    return gsap.to(element, {
-      opacity: 0,
-      y: -100,
-      scale: 0.8,
-      z: -100,
-      rotateX: -45,
-      transformOrigin: "50% 50% -100",
-      duration: 0.8,
-      ease: "power3.inOut"
-    });
-  }, []);
+  const animateMessageTransitions = useCallback((newComment: Comment) => {
+    if (!commentsRef.current) return;
 
-  const animateMessagesUp = useCallback((elements: HTMLElement[]) => {
-    if (!elements.length || !commentsRef.current) return gsap.timeline();
+    const messageHeight = commentsRef.current.children[0]?.clientHeight || 80;
+    const timeline = gsap.timeline();
 
-    const messageHeight = elements[0]?.offsetHeight || 80;
-    const tl = gsap.timeline();
-
-    gsap.set(commentsRef.current, {
-      height: `${messageHeight * visibleMessagesCount}px`,
-      overflow: 'hidden'
-    });
-
-    elements.forEach((el, i) => {
-      tl.to(el, {
-        y: `-=${messageHeight}`,
-        duration: 0.5,
-        ease: "power2.inOut",
-        scale: 0.98,
-      }, i * 0.08)
-      .to(el, {
-        scale: 1,
-        duration: 0.3,
-        ease: "power1.out"
-      }, '>-0.1');
-    });
-
-    return tl;
-  }, []);
-
-  const animateMessageIn = useCallback((element: HTMLElement) => {
-    return gsap.fromTo(element,
-      { 
-        opacity: 0,
-        y: 80,
-        scale: 0.8,
-        z: -100
-      },
-      { 
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        z: 0,
-        duration: 0.8,
-        ease: 'back.out(1.2)'
+    // Update state with new message
+    setVisibleComments(prev => {
+      if (prev.length >= visibleMessagesCount) {
+        return [...prev.slice(1), newComment];
       }
-    );
-  }, []);
+      return [...prev, newComment];
+    });
 
-  const animateNextMessage = useCallback(() => {
-    if (!commentsRef.current || currentIndexRef.current >= comments.length) return;
-
-    const currentIndex = currentIndexRef.current;
-    playMessageSound(currentIndex);
-    
-    if (currentIndex < visibleMessagesCount) {
-      setVisibleComments(prev => [...prev, comments[currentIndex]]);
-      requestAnimationFrame(() => {
-        const messageElements = Array.from(commentsRef.current?.children || []);
-        const currentElement = messageElements[currentIndex] as HTMLElement;
-        if (currentElement) {
-          animateMessageIn(currentElement);
-        }
-      });
-      return;
-    }
-
-    const newComment = comments[currentIndex];
-    const messageElements = Array.from(commentsRef.current?.children || []) as HTMLElement[];
-    
-    if (messageElements.length === 0) return;
-
-    const tl = gsap.timeline();
-
-    if (messageElements[0]) {
-      tl.add(animateMessageOut(messageElements[0]));
-    }
-
-    tl.addLabel('exitComplete', '+=0.4');
-
-    tl.call(() => {
-      setVisibleComments(prev => [...prev.slice(1), newComment]);
+    // After state update, animate the new message
+    requestAnimationFrame(() => {
+      if (!commentsRef.current) return;
       
-      requestAnimationFrame(() => {
-        const remainingMessages = Array.from(commentsRef.current?.children || [])
-          .slice(0, -1)
-          .map(el => el as HTMLElement);
-        
-        if (remainingMessages.length > 0) {
-          tl.add(animateMessagesUp(remainingMessages), '+=0.1');
-        }
+      const messages = Array.from(commentsRef.current.children) as HTMLElement[];
+      const newMessageElement = messages[messages.length - 1];
 
-        const newElement = commentsRef.current?.children[visibleMessagesCount - 1] as HTMLElement;
-        if (newElement) {
-          gsap.set(newElement, { 
+      if (messages.length <= visibleMessagesCount) {
+        // Animate new message from bottom
+        gsap.fromTo(newMessageElement,
+          {
             opacity: 0,
-            y: 80,
-            scale: 0.8,
-            z: -100
-          });
-          
-          tl.add(animateMessageIn(newElement), '+=0.3');
-        }
-      });
-    }, [], 'exitComplete');
-  }, [playMessageSound, animateMessageIn, animateMessageOut, animateMessagesUp]);
+            y: messageHeight,
+            scale: 0.8
+          },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.5,
+            ease: 'back.out(1.2)'
+          }
+        );
+      } else {
+        // When we exceed visibleMessagesCount
+        // 1. Animate out the top message
+        const topMessage = messages[0];
+        timeline.to(topMessage, {
+          opacity: 0,
+          y: -messageHeight,
+          scale: 0.8,
+          duration: 0.4,
+          ease: 'power2.in'
+        });
+
+        // 2. Shift up existing messages
+        const messagesToShift = messages.slice(1, -1);
+        timeline.to(messagesToShift, {
+          y: `-=${messageHeight}`,
+          duration: 0.5,
+          ease: 'power2.inOut'
+        }, '-=0.2');
+
+        // 3. Animate in new message
+        timeline.fromTo(newMessageElement,
+          {
+            opacity: 0,
+            y: messageHeight,
+            scale: 0.8
+          },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.5,
+            ease: 'back.out(1.2)'
+          },
+          '-=0.3'
+        );
+      }
+
+      // Play message sound
+      playMessageSound(currentIndexRef.current);
+    });
+  }, [playMessageSound, visibleMessagesCount]);
+
+  // Replace existing animateNextMessage with new version
+  const animateNextMessage = useCallback(() => {
+    if (currentIndexRef.current >= comments.length) return;
+    
+    const newComment = comments[currentIndexRef.current];
+    animateMessageTransitions(newComment);
+  }, [animateMessageTransitions]);
 
   // Animation Control
   useEffect(() => {
@@ -214,20 +186,35 @@ const ChatScene: React.FC = () => {
     return () => clearInterval(interval);
   }, [isActive, animateNextMessage]);
 
+  // Update handleReplay to use Flip
   const handleReplay = useCallback(() => {
     if (!commentsRef.current) return;
     
+    // Fade out replay button
     gsap.to(replayButtonRef.current, {
       opacity: 0,
       duration: 0.3
     });
 
+    // Capture current state
+    const state = Flip.getState('.comment');
+    
+    // Reset state
     setVisibleComments([]);
     currentIndexRef.current = 0;
-    
-    gsap.delayedCall(0.1, () => {
-      animateNextMessage();
-      currentIndexRef.current = 1;
+
+    // Animate out existing messages
+    Flip.from(state, {
+      absolute: true,
+      duration: 0.5,
+      ease: 'power2.inOut',
+      onComplete: () => {
+        // Start new animation sequence
+        gsap.delayedCall(0.1, () => {
+          animateNextMessage();
+          currentIndexRef.current = 1;
+        });
+      }
     });
   }, [animateNextMessage]);
 
@@ -239,14 +226,23 @@ const ChatScene: React.FC = () => {
         style={{
           position: 'relative',
           height: '480px',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          padding: '20px'
         }}
       >
         {visibleComments.map((comment, index) => (
           <div 
             key={`${comment.name}-${index}`}
             className={`comment ${comment.isRight ? 'right' : 'left'}`}
-            style={{ position: 'relative' }}
+            style={{ 
+              position: 'relative',
+              transform: 'translate3d(0, 0, 0)',
+              minHeight: 'fit-content',
+              margin: 0
+            }}
           >
             <div className="avatar-container">
               <div className="avatar" />
