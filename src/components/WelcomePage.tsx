@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { useScene } from '../context/SceneContext';
+import { useSceneState } from '../context/SceneContext';
 import gsap from 'gsap';
 import SplitType from 'split-type';
 import '../styles/WelcomePage.css';
@@ -10,7 +10,7 @@ interface WelcomePageProps {
 
 const WelcomePage: React.FC<WelcomePageProps> = ({ onStart }) => {
   const headphonesRef = useRef<SVGSVGElement>(null);
-  const { isActive } = useScene();
+  const { isActive } = useSceneState();
   const timeline = useRef(gsap.timeline({ paused: true }));
   const splitRefs = useRef<{ title?: SplitType; text?: SplitType }>({});
 

@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, ReactNode, FC, useEffect } from 'react';
+import { createContext, useContext, useReducer, ReactNode, FC, useEffect, useCallback } from 'react';
 import { SceneId } from '../App'; // Import SceneId from App
 
 interface SceneConfig {
@@ -111,11 +111,17 @@ const sceneReducer = (state: SceneState, action: SceneAction): SceneState => {
   }
 };
 
-const SceneContext = createContext<{
+interface SceneContextValue {
   state: SceneState;
   dispatch: React.Dispatch<SceneAction>;
-  currentId?: SceneId;
-} | undefined>(undefined);
+  useSceneStatus: (sceneId: SceneId) => { isActive: boolean };
+}
+
+export const SceneContext = createContext<SceneContextValue>({
+  state: {} as SceneState,
+  dispatch: () => null,
+  useSceneStatus: () => ({ isActive: false })
+});
 
 interface SceneProviderProps {
   children: ReactNode;
@@ -125,38 +131,12 @@ interface SceneProviderProps {
 export const SceneProvider: FC<SceneProviderProps> = ({ children, scenes }) => {
   const [state, dispatch] = useReducer(sceneReducer, scenes, createInitialState);
 
-  // Effect für das Handling von scrollbaren Scenes
-  useEffect(() => {
-    const currentSceneId = state.currentScene;
-    if (!currentSceneId) return;
-
-    const currentScene = state.scenes[currentSceneId as Exclude<SceneId, null>];
-    if (!currentScene) return;
-
-    // Wenn die Scene scrollbar ist, aktiv ist und noch Snapping hat
-    if (
-      currentScene.isScrollable && 
-      currentScene.isActive && 
-      currentScene.snapIntoPlace
-    ) {
-      const timer = setTimeout(() => {
-        dispatch({
-          type: 'UPDATE_SCENE',
-          payload: {
-            id: currentSceneId,
-            updates: {
-              snapIntoPlace: false
-            }
-          }
-        });
-      }, 1000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [state.currentScene, state.scenes]);
+  const useSceneStatus = useCallback((sceneId: SceneId) => ({
+    isActive: sceneId ? state.scenes[sceneId]?.isActive ?? false : false
+  }), [state.scenes]);
 
   return (
-    <SceneContext.Provider value={{ state, dispatch }}>
+    <SceneContext.Provider value={{ state, dispatch, useSceneStatus }}>
       {children}
     </SceneContext.Provider>
   );

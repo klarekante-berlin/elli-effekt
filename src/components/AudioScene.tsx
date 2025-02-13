@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useScene } from '../context/SceneContext';
+import { useSceneState } from '../context/SceneContext';
 import gsap from 'gsap';
 import SplitType from 'split-type';
 import transcriptData from '../transciption_data/transcript_elli_scene_01.json';
@@ -18,7 +18,7 @@ const AudioScene: React.FC<AudioSceneProps> = ({
   const splitText = useRef<SplitType | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
-  const { isActive } = useScene();
+  const { isActive } = useSceneState();
 
   // Audio laden und initialisieren
   useEffect(() => {

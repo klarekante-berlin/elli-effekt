@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { LenisInstance } from 'lenis/react';
+import { useScene } from '../context/SceneContext';
 
 interface ScrollSnappingOptions {
   threshold?: number;
@@ -17,6 +18,7 @@ export const useScrollSnapping = (
   lenisInstance?: LenisInstance | null,
   options: ScrollSnappingOptions = DEFAULT_OPTIONS
 ) => {
+  const { dispatch } = useScene();
   const [isScrolling, setIsScrolling] = useState(false);
   const [isAnimationScene, setIsAnimationScene] = useState(false);
   const [lastScrollPosition, setLastScrollPosition] = useState(0);
@@ -58,6 +60,30 @@ export const useScrollSnapping = (
     if (closestSnapScene && minDistance < threshold) {
       setIsScrolling(true);
       const targetElement = closestSnapScene as HTMLDivElement;
+      const sceneId = targetElement.dataset.sceneId;
+
+      if (sceneId) {
+        dispatch({
+          type: 'HANDLE_SCENE_ACTIVATION',
+          payload: {
+            id: sceneId,
+            isScrollable: targetElement.dataset.scrollable === 'true'
+          }
+        });
+
+        dispatch({
+          type: 'UPDATE_SCENE',
+          payload: {
+            id: sceneId,
+            updates: { 
+              isActive: true,
+              isAnimating: true
+            }
+          }
+        });
+
+        dispatch({ type: 'SET_CURRENT_SCENE', payload: sceneId });
+      }
       
       lenisInstance.scrollTo(targetElement, {
         duration: options.duration ?? DEFAULT_OPTIONS.duration,
@@ -67,11 +93,20 @@ export const useScrollSnapping = (
 
       setTimeout(() => {
         setIsScrolling(false);
+        if (sceneId) {
+          dispatch({
+            type: 'UPDATE_SCENE',
+            payload: {
+              id: sceneId,
+              updates: { isAnimating: false }
+            }
+          });
+        }
       }, (options.duration ?? DEFAULT_OPTIONS.duration) * 1000);
     }
 
     setLastScrollPosition(currentScrollPosition);
-  }, [isScrolling, isAnimationScene, lenisInstance, options, lastScrollPosition]);
+  }, [isScrolling, isAnimationScene, lenisInstance, options, lastScrollPosition, dispatch]);
 
   useEffect(() => {
     if (!lenisInstance) return;
