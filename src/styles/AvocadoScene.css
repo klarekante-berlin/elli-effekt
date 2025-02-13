@@ -21,7 +21,6 @@
   align-items: center;
   justify-content: flex-start;
   gap: 4rem;
-  padding: 2rem;
 }
 
 .avocado-text {
@@ -61,7 +60,7 @@
   margin: 2rem 0;
   width: 100%;
   max-width: 1200px;
-  padding: 0 2rem;
+  padding: 0;
   will-change: transform, opacity;
 }
 
