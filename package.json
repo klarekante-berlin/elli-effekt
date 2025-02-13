@@ -11,6 +11,7 @@
     "@types/jest": "^29.5.14",
     "cra-template-typescript": "1.2.0",
     "gsap": "^3.12.7",
+    "gsap-trial": "^3.12.7",
     "lenis": "^1.1.20",
     "lucide-react": "^0.474.0",
     "react": "^19.0.0",

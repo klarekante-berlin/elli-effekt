@@ -2,12 +2,14 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useScene } from '../context/SceneContext';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
+import { Flip } from 'gsap/Flip';
+import { GSDevTools } from 'gsap-trial/GSDevTools';
 import messageSound1 from '../assets/audio_effects/message_01.wav';
 import messageSound2 from '../assets/audio_effects/message_02.wav';
 import '../styles/ChatScene.css';
-import { Flip } from 'gsap/Flip';
 
-gsap.registerPlugin(Flip);
+// Register plugins
+gsap.registerPlugin(Flip, GSDevTools);
 
 interface Comment {
   text: string;
@@ -75,11 +77,16 @@ const ChatScene: React.FC = () => {
     }
   }, []);
 
-  const animateMessageTransitions = useCallback((newComment: Comment) => {
-    if (!commentsRef.current) return;
-
+  const animateNextMessage = useCallback(() => {
+    if (!commentsRef.current || currentIndexRef.current >= comments.length) return;
+    
+    console.log('Starting new message animation:', currentIndexRef.current);
+    
     const messageHeight = commentsRef.current.children[0]?.clientHeight || 80;
-    const timeline = gsap.timeline();
+    const timeline = gsap.timeline({
+      onStart: () => console.log('Timeline started'),
+      onComplete: () => console.log('Timeline completed')
+    });
 
     // Common animation config for new messages
     const newMessageAnimation = {
@@ -99,8 +106,12 @@ const ChatScene: React.FC = () => {
       }
     };
 
+    const newComment = comments[currentIndexRef.current];
+    console.log('Adding new comment:', newComment.text);
+
     // Update state with new message
     setVisibleComments(prev => {
+      console.log('Current visible messages:', prev.length);
       if (prev.length >= visibleMessagesCount) {
         return [...prev, newComment];
       }
@@ -111,63 +122,78 @@ const ChatScene: React.FC = () => {
       if (!commentsRef.current) return;
       
       const messages = Array.from(commentsRef.current.children) as HTMLElement[];
+      console.log('Total messages in DOM:', messages.length);
+      
       const newMessageElement = messages[messages.length - 1];
 
       if (messages.length <= visibleMessagesCount) {
-        // Initial messages animation (first 6)
+        console.log('Initial animation for first messages');
         gsap.fromTo(newMessageElement,
           newMessageAnimation.initial,
           newMessageAnimation.animate
         );
       } else {
-        const tl = gsap.timeline();
+        const tl = gsap.timeline({
+          id: "timeline",
+          onStart: () => console.log('Starting stagger sequence'),
+          onComplete: () => console.log('Stagger sequence completed')
+        });
 
-        // 1. Fade out top message
+        // Phase 1: Fade out top message
+        console.log('Phase 1: Fading out top message');
         tl.to(messages[0], {
           opacity: 0,
           y: -messageHeight/2,
           scale: 0.95,
-          duration: 0.4,
+          duration: 0.5,
           ease: 'power2.inOut',
+          onStart: () => console.log('Top message fade out started'),
           onComplete: () => {
+            console.log('Top message fade out completed');
             setVisibleComments(prev => prev.slice(1));
           }
         });
 
-        // 2. Stagger the list movement upwards
-        const messagesToMove = messages.slice(1, -1);
-        tl.to(messagesToMove, {
+        // Phase 2: Stagger list movement
+        console.log('Phase 2: Starting stagger animation');
+        tl.to(messages.slice(1, -1), {
           y: `-=${messageHeight + 12}`,
-          duration: 0.7,
+          duration: 2,
           stagger: {
-            each: 0.2,
-            ease: "power3.inOut"
+            each: 1.5,
+            ease: "power2.inOut",
+            from: "end",
+            onStart: () => console.log('Stagger movement started'),
+            onComplete: () => console.log('Stagger movement completed')
           },
-          ease: 'power3.inOut',
+          ease: 'power2.inOut',
           clearProps: 'transform'
-        }, "+=0.1");
+        }, ">");
 
-        // 3. Wait for list movement to complete, then animate new message
+        // Phase 3: Animate new message
+        console.log('Phase 3: Animating new message');
+        tl.addLabel("staggerComplete");
+
         tl.fromTo(newMessageElement,
-          {
-            ...newMessageAnimation.initial,
-            y: messageHeight/2 // Slightly different starting position
-          },
+          newMessageAnimation.initial,
           {
             ...newMessageAnimation.animate,
-            duration: 0.6, // Slightly longer duration
-            onComplete: () => {
-              gsap.set(newMessageElement, { clearProps: 'all' });
-            }
+            duration: 0.6,
+            onStart: () => console.log('New message animation started'),
+            onComplete: () => console.log('New message animation completed')
           },
-          "+=0.3" // Longer delay for better visual flow
+          "staggerComplete+=0.2"
         );
 
-        // Play sound with the new message animation
-        tl.call(() => playMessageSound(currentIndexRef.current), [], "<");
+        // Play sound
+        tl.call(() => {
+          console.log('Playing message sound');
+          playMessageSound(currentIndexRef.current);
+        }, [], "staggerComplete+=0.2");
 
-        // Ensure all transforms are cleared at the end
+        // Cleanup
         tl.add(() => {
+          console.log('Cleaning up transforms');
           messages.forEach(msg => {
             gsap.set(msg, { clearProps: 'all' });
           });
@@ -175,14 +201,6 @@ const ChatScene: React.FC = () => {
       }
     });
   }, [playMessageSound, visibleMessagesCount]);
-
-  // Replace existing animateNextMessage with new version
-  const animateNextMessage = useCallback(() => {
-    if (currentIndexRef.current >= comments.length) return;
-    
-    const newComment = comments[currentIndexRef.current];
-    animateMessageTransitions(newComment);
-  }, [animateMessageTransitions]);
 
   // Animation Control
   useEffect(() => {
@@ -239,8 +257,19 @@ const ChatScene: React.FC = () => {
     });
   }, [animateNextMessage]);
 
+  // Add GSDevTools setup
+  useGSAP(() => {
+    GSDevTools.create({
+      container: "#gsap-devtools",
+      globalSync: true,
+      visibility: 'visible',
+      minimal: false
+    });
+  }, []);
+
   return (
     <div className="chat-scene">
+      <div id="gsap-devtools" style={{ position: 'fixed', bottom: 0, right: 0, zIndex: 1000 }} />
       <div 
         ref={commentsRef} 
         className="chat-messages"
