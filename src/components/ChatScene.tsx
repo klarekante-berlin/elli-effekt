@@ -83,28 +83,11 @@ const ChatScene: React.FC = () => {
     console.log('Starting new message animation:', currentIndexRef.current);
     
     const messageHeight = commentsRef.current.children[0]?.clientHeight || 80;
-    const timeline = gsap.timeline({
+    const tl = gsap.timeline({
+      id: "messageAnimation",
       onStart: () => console.log('Timeline started'),
       onComplete: () => console.log('Timeline completed')
     });
-
-    // Common animation config for new messages
-    const newMessageAnimation = {
-      initial: {
-        opacity: 0,
-        y: 50,
-        scale: 0.9,
-        transformOrigin: 'center bottom'
-      },
-      animate: {
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        duration: 0.5,
-        ease: 'back.out(1.2)',
-        clearProps: 'all'
-      }
-    };
 
     const newComment = comments[currentIndexRef.current];
     console.log('Adding new comment:', newComment.text);
@@ -129,16 +112,22 @@ const ChatScene: React.FC = () => {
       if (messages.length <= visibleMessagesCount) {
         console.log('Initial animation for first messages');
         gsap.fromTo(newMessageElement,
-          newMessageAnimation.initial,
-          newMessageAnimation.animate
+          {
+            opacity: 0,
+            y: 50,
+            scale: 0.9,
+            transformOrigin: 'center bottom'
+          },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.5,
+            ease: 'back.out(1.2)',
+            clearProps: 'all'
+          }
         );
       } else {
-        const tl = gsap.timeline({
-          id: "timeline",
-          onStart: () => console.log('Starting stagger sequence'),
-          onComplete: () => console.log('Stagger sequence completed')
-        });
-
         // Phase 1: Fade out top message
         console.log('Phase 1: Fading out top message');
         tl.to(messages[0], {
@@ -147,7 +136,6 @@ const ChatScene: React.FC = () => {
           scale: 0.95,
           duration: 0.5,
           ease: 'power2.inOut',
-          onStart: () => console.log('Top message fade out started'),
           onComplete: () => {
             console.log('Top message fade out completed');
             setVisibleComments(prev => prev.slice(1));
@@ -155,45 +143,55 @@ const ChatScene: React.FC = () => {
         });
 
         // Phase 2: Stagger list movement
-        console.log('Phase 2: Starting stagger animation');
-        tl.to(messages.slice(1, -1), {
+        const messagesToMove = messages.slice(1, -1);
+        console.log('Phase 2: Starting stagger animation for', messagesToMove.length, 'messages');
+        
+        tl.to(messagesToMove, {
           y: `-=${messageHeight + 12}`,
-          duration: 2,
+          duration: 0.8,
           stagger: {
-            each: 1.5,
+            amount: 0.4, // Total time to stagger all items
+            from: "start",
             ease: "power2.inOut",
-            from: "end",
-            onStart: () => console.log('Stagger movement started'),
-            onComplete: () => console.log('Stagger movement completed')
+            onStart: function() {
+              console.log('Stagger started for message:', this.targets()[0].textContent);
+            },
+            onComplete: function() {
+              console.log('Stagger completed for message:', this.targets()[0].textContent);
+            }
           },
           ease: 'power2.inOut',
           clearProps: 'transform'
-        }, ">");
+        }, '>');
 
         // Phase 3: Animate new message
         console.log('Phase 3: Animating new message');
-        tl.addLabel("staggerComplete");
-
         tl.fromTo(newMessageElement,
-          newMessageAnimation.initial,
           {
-            ...newMessageAnimation.animate,
-            duration: 0.6,
-            onStart: () => console.log('New message animation started'),
-            onComplete: () => console.log('New message animation completed')
+            opacity: 0,
+            y: 50,
+            scale: 0.9,
+            transformOrigin: 'center bottom'
           },
-          "staggerComplete+=0.2"
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.5,
+            ease: 'back.out(1.2)',
+            clearProps: 'all',
+            onStart: () => console.log('New message animation started'),
+            onComplete: () => {
+              console.log('New message animation completed');
+              playMessageSound(currentIndexRef.current);
+            }
+          },
+          '>-0.2'
         );
 
-        // Play sound
-        tl.call(() => {
-          console.log('Playing message sound');
-          playMessageSound(currentIndexRef.current);
-        }, [], "staggerComplete+=0.2");
-
-        // Cleanup
+        // Cleanup at the end of the timeline
         tl.add(() => {
-          console.log('Cleaning up transforms');
+          console.log('Final cleanup');
           messages.forEach(msg => {
             gsap.set(msg, { clearProps: 'all' });
           });
