@@ -78,13 +78,17 @@ const ChatScene: React.FC = () => {
   }, []);
 
   const animateNextMessage = useCallback(() => {
+    // 1. Abbruchbedingungen prüfen
     if (!commentsRef.current || currentIndexRef.current >= comments.length) return;
-    
+
     console.log('Starting new message animation:', currentIndexRef.current);
-    
+
     const messageHeight = commentsRef.current.children[0]?.clientHeight || 80;
     const messageSpacing = 12;
+
+    // 2. Timeline erstellen (außerhalb von requestAnimationFrame)
     const tl = gsap.timeline({
+      id: `message-${currentIndexRef.current}`, // Eindeutige ID für DevTools
       onStart: () => console.log('Timeline started'),
       onComplete: () => console.log('Timeline completed')
     });
@@ -92,45 +96,33 @@ const ChatScene: React.FC = () => {
     const newComment = comments[currentIndexRef.current];
     console.log('Adding new comment:', newComment.text);
 
-    // First, add the new message to state
+    // 3. Neue Nachricht zum State hinzufügen (außerhalb von requestAnimationFrame)
     setVisibleComments(prev => {
       console.log('Current visible messages:', prev.length);
       return [...prev, newComment];
     });
 
+    // 4. Animationen innerhalb von requestAnimationFrame
     requestAnimationFrame(() => {
       if (!commentsRef.current) return;
-      
+
       const messages = Array.from(commentsRef.current.children) as HTMLElement[];
       console.log('Total messages in DOM:', messages.length);
-      
-      const newMessageElement = messages[messages.length - 1];
-      let currentY = 0;
 
+      const newMessageElement = messages[messages.length - 1];
+
+      // 5. Fallunterscheidung: Anfangsanimation vs. Stagger-Animation
       if (messages.length <= visibleMessagesCount) {
+        // 5.1.  Erste Nachrichten (kein Stagger)
         console.log('Initial animation for first messages');
         gsap.fromTo(newMessageElement,
-          {
-            opacity: 0,
-            y: 50,
-            scale: 0.9,
-            transformOrigin: 'center bottom'
-          },
-          {
-            opacity: 1,
-            y: currentY,
-            scale: 1,
-            duration: 0.5,
-            ease: 'back.out(1.2)',
-            clearProps: 'all'
-          }
+          { opacity: 0, y: 50, scale: 0.9, transformOrigin: 'center bottom' },
+          { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: 'back.out(1.2)', clearProps: 'all' }
         );
       } else {
-        // Create a state snapshot before animation
-        const currentMessages = messages.slice(0, -1); // Exclude new message
-        let accumulatedHeight = 0;
+        // 5.2. Stagger-Animation (mehr als visibleMessagesCount Nachrichten)
 
-        // Phase 1 & 2: Combine fade out and move up
+        // 5.2.1. Oberste Nachricht ausblenden
         tl.to(messages[0], {
           opacity: 0,
           y: -60,
@@ -140,6 +132,7 @@ const ChatScene: React.FC = () => {
           ease: 'power2.inOut',
           onComplete: () => {
             console.log('Top message fade out completed');
+            // WICHTIG: State erst NACH dem Fade-out aktualisieren
             setVisibleComments(prev => {
               const next = prev.slice(1);
               console.log('Updating visible messages:', next.length);
@@ -148,13 +141,13 @@ const ChatScene: React.FC = () => {
           }
         });
 
-        // Move all remaining messages up together with stagger
-        tl.to(messages.slice(1, -1), {
-          y: (index) => `-=${messageHeight + messageSpacing}`,
-          duration: 0.6,
+        // 5.2.2. Verbleibende Nachrichten nach oben verschieben (Stagger)
+        tl.to(messages.slice(1, -1), {  // WICHTIG: slice(1, -1)
+          y: `-=${messageHeight + messageSpacing}`, // Relativ nach oben verschieben
+          duration: 0.7,  // Etwas längere Dauer für flüssigeren Effekt
           stagger: {
-            amount: 0.4,
-            from: "start",
+            amount: 0.3,   // Gesamtzeit für Stagger
+            from: "start", // Von oben nach unten
             ease: "power2.inOut",
             onStart: function() {
               console.log('Starting stagger for:', this.targets().length, 'messages');
@@ -164,17 +157,12 @@ const ChatScene: React.FC = () => {
             }
           },
           ease: 'power2.inOut',
-          clearProps: 'transform'
-        }, '>-0.2');
+          clearProps: 'transform' // WICHTIG: Aufräumen
+        }, '>-0.3'); // Überlappung mit Fade-out
 
-        // Phase 3: Animate new message
+        // 5.2.3. Neue Nachricht einblenden
         tl.fromTo(newMessageElement,
-          {
-            opacity: 0,
-            y: 50,
-            scale: 0.9,
-            transformOrigin: 'center bottom'
-          },
+          { opacity: 0, y: 50, scale: 0.9, transformOrigin: 'center bottom' },
           {
             opacity: 1,
             y: 0,
@@ -188,19 +176,11 @@ const ChatScene: React.FC = () => {
               playMessageSound(currentIndexRef.current);
             }
           },
-          '>-0.2'
+          '>-0.3'  // Überlappung mit Stagger
         );
-
-        // Add a final position check
-        tl.add(() => {
-          console.log('Finalizing positions');
-          gsap.set(messages.slice(1), {
-            clearProps: 'transform'
-          });
-        }, '>');
-      }
-    });
-  }, [playMessageSound, visibleMessagesCount]);
+      } // Ende else (Stagger-Animation)
+    }); // Ende requestAnimationFrame
+  }, [playMessageSound, visibleMessagesCount]); // Ende useCallback
 
   // Animation Control
   useEffect(() => {
