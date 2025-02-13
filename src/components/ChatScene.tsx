@@ -118,7 +118,7 @@ const ChatScene: React.FC = () => {
           defaults: { ease: 'power3.inOut' }
         });
 
-        // 1. Fade out top message
+        // 1. Fade out top message and move it up
         tl.to(messages[0], {
           opacity: 0,
           y: -messageHeight/2,
@@ -130,16 +130,17 @@ const ChatScene: React.FC = () => {
           }
         });
 
-        // 2. Move remaining messages up with stagger
-        const messagesToShift = messages.slice(1, -1);
-        messagesToShift.forEach((msg, index) => {
-          tl.to(msg, {
-            y: `-=${messageHeight + 12}`,
-            duration: 0.7,
-            ease: 'power3.inOut',
-            delay: index * 0.1,
-          }, '-=0.5');
-        });
+        // 2. Move all messages up together with stagger
+        tl.to(messages.slice(1), {
+          y: `-=${messageHeight + 12}`,
+          duration: 0.8,
+          stagger: {
+            each: 0.05,
+            ease: 'power2.inOut',
+            from: 'start'
+          },
+          clearProps: 'transform'
+        }, '<0.1'); // Start slightly after the top message starts moving
 
         // 3. Animate in new message
         tl.fromTo(newMessageElement,
@@ -157,11 +158,11 @@ const ChatScene: React.FC = () => {
             ease: 'back.out(1.2)',
             clearProps: 'all'
           },
-          '-=0.3'
+          '<0.4' // Start while others are still moving up
         );
 
         // Play sound with slight delay
-        tl.call(() => playMessageSound(currentIndexRef.current), [], '-=0.4');
+        tl.call(() => playMessageSound(currentIndexRef.current), [], '<0.2');
       }
     });
   }, [playMessageSound, visibleMessagesCount]);
