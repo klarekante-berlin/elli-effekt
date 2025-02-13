@@ -167,13 +167,17 @@ export const useScene = () => {
   if (!context) {
     throw new Error('useScene must be used within a SceneProvider');
   }
-  
-  const { currentId } = context;
-  if (currentId && currentId in context.state.scenes) {
-    return context.state.scenes[currentId as Exclude<SceneId, null>];
-  }
-  
   return context;
+};
+
+// Separate hook for scene state
+export const useSceneState = () => {
+  const context = useScene();
+  const { currentId, state } = context;
+  if (currentId && currentId in state.scenes) {
+    return state.scenes[currentId as Exclude<SceneId, null>];
+  }
+  return null;
 };
 
 interface SceneContextProviderProps {
