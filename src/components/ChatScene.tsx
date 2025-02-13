@@ -197,11 +197,11 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
         y: -60,
         opacity: 0,
         scale: 0.95,
-        filter: 'blur(4px)',
+        filter: 'blur(16px)',
         z: -100,
         transformOrigin: 'top center',
         duration: 0.4,
-        ease: 'power2.inOut',
+        ease: 'power3.inOut',
       }, 0);
     }
 
@@ -221,7 +221,6 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
     if (existingMessages.length > 0) {
       tl.to(existingMessages, {
         y: (i) => {
-          // Berechne die Position basierend auf den vorherigen Nachrichten
           let totalOffset = topPadding;
           for (let j = 0; j < i; j++) {
             totalOffset += getMessageHeight(existingMessages[j] as HTMLElement) + messageSpacing;
@@ -233,9 +232,9 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
         filter: 'blur(0px)',
         z: 0,
         duration: 0.4,
-        ease: 'power2.inOut',
+        ease: 'expo.inOut',
         stagger: {
-          amount: 0.2,  // Etwas schnellerer Stagger
+          amount: 0.25,
           from: "start"
         }
       }, 0);
@@ -245,7 +244,6 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
     if (currentIndex >= startIndex && currentIndex <= endIndex) {
       const newElement = messageElements[currentIndex];
       
-      // Berechne die Position für die neue Nachricht
       let newElementY = topPadding;
       existingMessages.forEach((msg) => {
         newElementY += getMessageHeight(msg as HTMLElement) + messageSpacing;
@@ -255,8 +253,8 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
         { 
           y: window.innerHeight,
           opacity: 0,
-          scale: 0.95,
-          filter: 'blur(0px)',
+          scale: 0.9,
+          filter: 'blur(600px)',
           z: 0,
           transformOrigin: 'top center',
         },
@@ -267,9 +265,9 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
           filter: 'blur(0px)',
           z: 0,
           duration: 0.4,
-          ease: 'power2.out',
+          ease: 'expo.out',
         },
-        '>-0.1'  // Starte etwas überlappend mit dem letzten Stagger
+        '>-0.1'
       );
     }
 
