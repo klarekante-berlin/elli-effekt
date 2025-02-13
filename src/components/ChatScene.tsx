@@ -83,15 +83,12 @@ const ChatScene: React.FC = () => {
 
     // Update state with new message
     setVisibleComments(prev => {
-      // Important: For the animation to work, we need to keep the top message
-      // in the DOM briefly while it animates out
       if (prev.length >= visibleMessagesCount) {
         return [...prev, newComment];
       }
       return [...prev, newComment];
     });
 
-    // After state update, animate the new message
     requestAnimationFrame(() => {
       if (!commentsRef.current) return;
       
@@ -116,34 +113,43 @@ const ChatScene: React.FC = () => {
         );
       } else {
         // When we exceed visibleMessagesCount
-        // 1. Animate out the top message
-        const topMessage = messages[0];
-        timeline.to(topMessage, {
-          opacity: 0,
-          y: -messageHeight,
-          scale: 0.8,
-          duration: 0.4,
-          ease: 'power2.in',
+        const tl = gsap.timeline({
           onComplete: () => {
-            // Remove the top message after its animation
+            // Only remove the top message after all animations are complete
             setVisibleComments(prev => prev.slice(1));
           }
         });
 
-        // 2. Shift up existing messages with stagger
-        const messagesToShift = messages.slice(1, -1);
-        timeline.to(messagesToShift, {
-          y: `-=${messageHeight}`,
-          duration: 0.6,
-          ease: 'power2.inOut',
-          stagger: {
-            amount: 0.3,
-            from: "start"
-          }
-        }, '-=0.2');
+        // 1. First fade out the top message
+        tl.to(messages[0], {
+          opacity: 0,
+          y: -messageHeight/2,
+          scale: 0.8,
+          duration: 0.4,
+          ease: 'power2.in'
+        });
 
-        // 3. Animate in new message
-        timeline.fromTo(newMessageElement,
+        // 2. Move remaining messages up with stagger
+        // Capture all messages except the first and last one
+        const messagesToMove = messages.slice(1, -1);
+        messagesToMove.forEach((msg, index) => {
+          // Store original position
+          const originalY = msg.offsetTop;
+          
+          // Set initial position
+          gsap.set(msg, { y: 0 });
+          
+          // Animate to new position
+          tl.to(msg, {
+            y: -(messageHeight + 12), // account for gap
+            duration: 0.8,
+            ease: 'power3.inOut',
+            delay: index * 0.08, // stagger delay
+          }, '-=0.6'); // overlap animations
+        });
+
+        // 3. Animate in the new message
+        tl.fromTo(newMessageElement,
           {
             opacity: 0,
             y: messageHeight,
@@ -158,10 +164,10 @@ const ChatScene: React.FC = () => {
           },
           '-=0.3'
         );
-      }
 
-      // Play message sound
-      playMessageSound(currentIndexRef.current);
+        // Play message sound
+        playMessageSound(currentIndexRef.current);
+      }
     });
   }, [playMessageSound, visibleMessagesCount]);
 
