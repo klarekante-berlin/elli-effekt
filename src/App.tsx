@@ -1,7 +1,6 @@
 import React from 'react';
 import { ReactLenis } from 'lenis/react';
 import BackgroundTexture from './components/BackgroundTexture';
-import { AppProvider } from './context/AppContext';
 import { SceneProvider } from './context/SceneContext';
 import PlaceholderScene from './components/PlaceholderScene';
 import { Scene } from './components/Scene';
@@ -10,16 +9,18 @@ import WelcomePage from './components/WelcomePage';
 import AudioScene from './components/AudioScene';
 import ChatScene from './components/ChatScene';
 import AvocadoScene from './components/AvocadoScene';
-import videoSource from './assets/videos/WhatIf_Screen_002_Video.mp4';
+import scene2Video from './assets/videos/scene_02.mp4';
+import scene4Video from './assets/videos/scene_04.mp4';
 
 // First define the scenes configuration
 const SCENES = [
   { id: 'welcome', component: WelcomePage, props: { onStart: () => console.log('Start clicked') }, snapIntoPlace: true },
   { id: 'scene-1', component: AudioScene, snapIntoPlace: true },
-  { id: 'scene-2', component: VideoScene, props: { videoSource }, snapIntoPlace: true },
+  { id: 'scene-2', component: VideoScene, props: { videoSource: scene2Video }, snapIntoPlace: true },
   { id: 'scene-3', component: ChatScene, snapIntoPlace: true },
-  { id: 'scene-4', component: AvocadoScene, snapIntoPlace: true, isScrollable: true },
-  { id: 'scene-5', component: PlaceholderScene, props: { text: "Dies ist Scene 5 mit Snapping-Verhalten" }, snapIntoPlace: true }
+  { id: 'scene-4', component: VideoScene, props: { videoSource: scene4Video }, snapIntoPlace: true },
+  { id: 'scene-5', component: AvocadoScene, snapIntoPlace: true, isScrollable: true },
+  { id: 'scene-6', component: PlaceholderScene, props: { text: "Dies ist Scene 5 mit Snapping-Verhalten" }, snapIntoPlace: true }
 ] as Array<{
   id: string;
   component: React.ComponentType<any>;

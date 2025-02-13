@@ -3,8 +3,8 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { RotateCcw } from 'lucide-react';
 import '../styles/ChatScene.css';
-import messageSound1 from '../assets/audio_effects/message_01.wav';
-import messageSound2 from '../assets/audio_effects/message_02.wav';
+import messageSound1 from '../assets/audio_effects/message_01.mp3';
+import messageSound2 from '../assets/audio_effects/message_02.mp3';
 
 gsap.registerPlugin(ScrollTrigger);
 

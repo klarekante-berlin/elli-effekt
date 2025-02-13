@@ -1,4 +1,4 @@
-import { FC, useRef, useEffect } from 'react';
+import { FC, useRef, useEffect, memo } from 'react';
 import { useSceneState } from '../context/SceneContext';
 
 interface VideoSceneProps {
@@ -8,34 +8,45 @@ interface VideoSceneProps {
     loop?: boolean;
 }
 
-const VideoScene: FC<VideoSceneProps> = ({
+const VideoScene: FC<VideoSceneProps> = memo(({
     videoSource,
     autoPlay = true,
-    muted = true,
+    muted = false,
     loop = true
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const { isActive = false } = useSceneState() ?? {};
 
-
-    // Video-Steuerung basierend auf Scene-Status
+    // Lazy loading des Videos mit loading="lazy"
     useEffect(() => {
         const videoElement = videoRef.current;
         if (!videoElement) return;
 
+        // Preload-Strategie optimieren
+        videoElement.preload = isActive ? 'auto' : 'none';
+
         if (isActive) {
-            videoElement.play().catch(error => {
-                console.error('Video konnte nicht abgespielt werden:', error);
-            });
+            // Performance-Optimierung: Video nur abspielen wenn es im Viewport ist
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach((entry) => {
+                        if (entry.isIntersecting) {
+                            videoElement.play().catch(error => {
+                                console.error('Video konnte nicht abgespielt werden:', error);
+                            });
+                        } else {
+                            videoElement.pause();
+                        }
+                    });
+                },
+                { threshold: 0.1 }
+            );
+
+            observer.observe(videoElement);
+            return () => observer.disconnect();
         } else {
             videoElement.pause();
         }
-
-        return () => {
-            if (videoElement && !videoElement.paused) {
-                videoElement.pause();
-            }
-        };
     }, [isActive]);
 
     return (
@@ -50,11 +61,20 @@ const VideoScene: FC<VideoSceneProps> = ({
                 style={{
                     width: '100%',
                     height: '100%',
-                    objectFit: 'cover'
+                    objectFit: 'cover',
+                    willChange: 'transform' // Für bessere GPU-Beschleunigung
                 }}
             />
         </div>
     );
-};
+}, (prevProps, nextProps) => {
+    // Memoisierungs-Bedingungen
+    return (
+        prevProps.videoSource === nextProps.videoSource &&
+        prevProps.autoPlay === nextProps.autoPlay &&
+        prevProps.muted === nextProps.muted &&
+        prevProps.loop === nextProps.loop
+    );
+});
 
 export default VideoScene; 

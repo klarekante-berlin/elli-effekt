@@ -1,6 +1,6 @@
 // src/components/Scene.tsx
 import { FC, ReactNode, useRef, useEffect, useCallback } from 'react';
-import { useScene } from '../context/SceneContext';
+import { useSceneState, useScene } from '../context/SceneContext';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useLenis } from 'lenis/react';
 import { useScrollSnapping } from '../hooks/useScrollSnapping';
@@ -27,7 +27,7 @@ export const Scene: FC<SceneProps> = ({
     const { state, dispatch } = useScene();
     const containerRef = useRef<HTMLDivElement>(null);
     const lenis = useLenis();
-    const isActive = state.scenes[id]?.isActive ?? false;
+    const { isActive = false } = useSceneState() ?? {};
     const hasSnapped = useRef(false);
     
     const { isScrolling } = useScrollSnapping(
