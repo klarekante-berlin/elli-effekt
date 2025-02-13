@@ -114,55 +114,61 @@ const ChatScene: React.FC = () => {
           }
         );
       } else {
-        const tl = gsap.timeline({
-          defaults: { ease: 'power3.inOut' }
-        });
+        const tl = gsap.timeline();
 
-        // 1. Fade out top message and move it up
+        // 1. Fade out top message
         tl.to(messages[0], {
           opacity: 0,
           y: -messageHeight/2,
-          scale: 0.9,
-          duration: 0.5,
+          scale: 0.95,
+          duration: 0.4,
           ease: 'power2.inOut',
           onComplete: () => {
             setVisibleComments(prev => prev.slice(1));
           }
         });
 
-        // 2. Move all messages up together with stagger
-        tl.to(messages.slice(1), {
+        // 2. Stagger the list movement upwards
+        const messagesToMove = messages.slice(1, -1);
+        tl.to(messagesToMove, {
           y: `-=${messageHeight + 12}`,
-          duration: 0.8,
+          duration: 0.7,
           stagger: {
-            each: 0.05,
-            ease: 'power2.inOut',
-            from: 'start'
+            each: 0.2,
+            ease: "power3.inOut"
           },
+          ease: 'power3.inOut',
           clearProps: 'transform'
-        }, '<0.1'); // Start slightly after the top message starts moving
+        }, "+=0.1"); // Start after top message fade out
 
-        // 3. Animate in new message
+        // 3. Wait for list movement to complete, then animate new message
         tl.fromTo(newMessageElement,
           {
             opacity: 0,
-            y: 40,
-            scale: 0.9,
+            y: 50,
+            scale: 0.95,
             transformOrigin: 'center bottom'
           },
           {
             opacity: 1,
             y: 0,
             scale: 1,
-            duration: 0.6,
+            duration: 0.5,
             ease: 'back.out(1.2)',
             clearProps: 'all'
           },
-          '<0.4' // Start while others are still moving up
+          "+=0.2" // Add delay after list movement
         );
 
-        // Play sound with slight delay
-        tl.call(() => playMessageSound(currentIndexRef.current), [], '<0.2');
+        // Play sound with the new message animation
+        tl.call(() => playMessageSound(currentIndexRef.current), [], "<");
+
+        // Ensure all transforms are cleared at the end
+        tl.add(() => {
+          messages.forEach(msg => {
+            gsap.set(msg, { clearProps: 'all' });
+          });
+        });
       }
     });
   }, [playMessageSound, visibleMessagesCount]);
