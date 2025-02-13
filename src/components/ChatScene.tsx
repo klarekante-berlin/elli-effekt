@@ -96,77 +96,72 @@ const ChatScene: React.FC = () => {
       const newMessageElement = messages[messages.length - 1];
 
       if (messages.length <= visibleMessagesCount) {
-        // Animate new message from bottom
+        // Initial messages animation (first 6)
         gsap.fromTo(newMessageElement,
           {
             opacity: 0,
-            y: messageHeight,
-            scale: 0.8
+            y: 50,
+            scale: 0.9,
+            transformOrigin: 'center bottom'
           },
           {
             opacity: 1,
             y: 0,
             scale: 1,
             duration: 0.5,
-            ease: 'back.out(1.2)'
+            ease: 'power2.out',
+            clearProps: 'all'
           }
         );
       } else {
-        // When we exceed visibleMessagesCount
         const tl = gsap.timeline({
+          defaults: { ease: 'power3.inOut' }
+        });
+
+        // 1. Fade out top message
+        tl.to(messages[0], {
+          opacity: 0,
+          y: -messageHeight/2,
+          scale: 0.9,
+          duration: 0.5,
+          ease: 'power2.inOut',
           onComplete: () => {
-            // Only remove the top message after all animations are complete
             setVisibleComments(prev => prev.slice(1));
           }
         });
 
-        // 1. First fade out the top message
-        tl.to(messages[0], {
-          opacity: 0,
-          y: -messageHeight/2,
-          scale: 0.8,
-          duration: 0.4,
-          ease: 'power2.in'
-        });
-
         // 2. Move remaining messages up with stagger
-        // Capture all messages except the first and last one
-        const messagesToMove = messages.slice(1, -1);
-        messagesToMove.forEach((msg, index) => {
-          // Store original position
-          const originalY = msg.offsetTop;
-          
-          // Set initial position
-          gsap.set(msg, { y: 0 });
-          
-          // Animate to new position
+        const messagesToShift = messages.slice(1, -1);
+        messagesToShift.forEach((msg, index) => {
           tl.to(msg, {
-            y: -(messageHeight + 12), // account for gap
-            duration: 0.8,
+            y: `-=${messageHeight + 12}`,
+            duration: 0.7,
             ease: 'power3.inOut',
-            delay: index * 0.08, // stagger delay
-          }, '-=0.6'); // overlap animations
+            delay: index * 0.1,
+          }, '-=0.5');
         });
 
-        // 3. Animate in the new message
+        // 3. Animate in new message
         tl.fromTo(newMessageElement,
           {
             opacity: 0,
-            y: messageHeight,
-            scale: 0.8
+            y: 40,
+            scale: 0.9,
+            transformOrigin: 'center bottom'
           },
           {
             opacity: 1,
             y: 0,
             scale: 1,
-            duration: 0.5,
-            ease: 'back.out(1.2)'
+            duration: 0.6,
+            ease: 'back.out(1.2)',
+            clearProps: 'all'
           },
           '-=0.3'
         );
 
-        // Play message sound
-        playMessageSound(currentIndexRef.current);
+        // Play sound with slight delay
+        tl.call(() => playMessageSound(currentIndexRef.current), [], '-=0.4');
       }
     });
   }, [playMessageSound, visibleMessagesCount]);
