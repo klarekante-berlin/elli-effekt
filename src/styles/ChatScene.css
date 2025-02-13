@@ -20,11 +20,9 @@
   align-items: center;
   margin-top: 1rem;
   padding-top: 1rem;
-  overflow: hidden;  /* Verhindert Scrolling */
   margin-left: auto;
   margin-right: auto;
-  padding-left: 0rem;   /* Platz für die Nachrichten */
-  padding-right: 0rem;
+  height: 100%;
 }
 
 .comment {
@@ -95,14 +93,33 @@
 
 .replay-button {
   position: relative;
-  padding: 0.8rem 2rem;
+  padding: 1rem 2rem;
   border: none;
   border-radius: 30px;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   color: white;
-  font-weight: 600;
+  font-weight: 300;
   cursor: pointer;
-  margin-bottom: 5rem;
+  margin-bottom: 2rem;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.2rem;
+}
+
+.replay-button span {
+  display: inline-block;
+  padding-top: 2px;
+}
+
+.replay-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+.replay-button:active {
+  transform: translateY(1px);
 } 

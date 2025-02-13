@@ -1,0 +1,10 @@
+.scene {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  scroll-snap-align: start;
+}
+
+.scene[data-scene-active="true"] {
+  z-index: 1;
+} 

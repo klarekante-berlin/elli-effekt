@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { RotateCcw } from 'lucide-react';
 import '../styles/ChatScene.css';
 import messageSound1 from '../assets/audio_effects/message_01.wav';
 import messageSound2 from '../assets/audio_effects/message_02.wav';
@@ -165,11 +166,9 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
   const animateMessages = (currentIndex: number) => {
     if (!containerRef.current || !commentsRef.current) return;
 
-    playMessageSound(currentIndex);
-
     const messageElements = Array.from(commentsRef.current.children);
-    const messageSpacing = 20;  // Größerer Abstand zwischen Nachrichten
-    const topPadding = 24;     // Mehr Platz oben
+    const messageSpacing = 20;
+    const topPadding = 24;
     
     if (timelineRef.current) {
       timelineRef.current.kill();
@@ -249,6 +248,8 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
         newElementY += getMessageHeight(msg as HTMLElement) + messageSpacing;
       });
       
+      tl.call(() => playMessageSound(currentIndex), [], '>-0.1');
+      
       tl.fromTo(newElement,
         { 
           y: window.innerHeight,
@@ -281,10 +282,14 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
     const audio = isEven ? audioRef1.current : audioRef2.current;
     
     if (audio) {
-      audio.currentTime = 0; // Reset Audio
+      audio.currentTime = 0;
+      audio.volume = 0.4;
+      
       const playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise.catch(error => console.log('Audio playback failed:', error));
+        playPromise.catch(error => {
+          console.warn('Audio playback failed:', error);
+        });
       }
     }
   };
@@ -364,19 +369,7 @@ const ChatScene: React.FC<ChatSceneProps> = ({ onComplete }) => {
         onClick={handleReplay}
         style={{ opacity: 0 }}
       >
-        <svg 
-          viewBox="0 0 24 24" 
-          width="24" 
-          height="24" 
-          stroke="currentColor" 
-          strokeWidth="2" 
-          fill="none" 
-          strokeLinecap="round" 
-          strokeLinejoin="round"
-        >
-          <polyline points="1 4 1 10 7 10"></polyline>
-          <path d="M3.51 15a9 9 0 1 0-2.13-9.36L1 10"></path>
-        </svg>
+        <RotateCcw size={30} />
         <span>Wiederholen</span>
       </button>
     </div>

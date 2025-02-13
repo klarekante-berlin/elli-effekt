@@ -9,6 +9,7 @@ import { useScrollSnapping } from '../hooks/useScrollSnapping';
 interface SceneProps {
     id: string;
     snapIntoPlace?: boolean;
+    isScrollable?: boolean;
     children: ReactNode;
     onActivate?: () => void;
     onDeactivate?: () => void;
@@ -17,6 +18,7 @@ interface SceneProps {
 export const Scene: FC<SceneProps> = ({
     id,
     snapIntoPlace = false,
+    isScrollable = false,
     children,
     onActivate,
     onDeactivate
@@ -26,7 +28,7 @@ export const Scene: FC<SceneProps> = ({
     const lenis = useLenis();
     
     const { isScrolling, setIsScrolling, isAnimationScene, setIsAnimationScene } = useScrollSnapping(
-        snapIntoPlace ? lenis : null
+        (!isScrollable && snapIntoPlace) ? lenis : null
     );
 
     const handleSceneActivation = useCallback(() => {
@@ -49,27 +51,41 @@ export const Scene: FC<SceneProps> = ({
             onEnter: handleSceneActivation,
             onEnterBack: handleSceneActivation,
             onLeave: handleSceneDeactivation,
-            onLeaveBack: handleSceneDeactivation
+            onLeaveBack: handleSceneDeactivation,
+            onUpdate: (self) => {
+                if (isScrollable) {
+                    // Wenn wir uns der scrollbaren Szene nähern (ab 50% Sichtbarkeit)
+                    if (self.progress > 0.5 && !state.isSnappingDisabled) {
+                        dispatch({ type: 'SET_SNAPPING_ENABLED', payload: false });
+                    }
+                    // Wenn wir uns von der scrollbaren Szene entfernen (unter 50% Sichtbarkeit)
+                    else if (self.progress < 0.5 && state.isSnappingDisabled) {
+                        dispatch({ type: 'SET_SNAPPING_ENABLED', payload: true });
+                    }
+                }
+            }
         });
 
         return () => {
             trigger.kill();
         };
-    }, [handleSceneActivation, handleSceneDeactivation]);
+    }, [handleSceneActivation, handleSceneDeactivation, isScrollable, dispatch, state.isSnappingDisabled]);
 
     const sceneContextValue = {
         id: id as SceneId,
         isActive: state.currentScene === id,
         isAnimating: isScrolling,
-        snapIntoPlace
+        snapIntoPlace,
+        isScrollable
     };
 
     return (
         <section 
             ref={containerRef} 
-            className={`scene scene-${id}${snapIntoPlace ? ' snap-scene' : ''}`}
+            className={`scene scene-${id}${snapIntoPlace && !isScrollable ? ' snap-scene' : ''}`}
             data-scene-id={id}
             data-scene-active={state.currentScene === id}
+            data-scrollable={isScrollable}
         >
             <SceneProvider value={sceneContextValue}>
                 {children}

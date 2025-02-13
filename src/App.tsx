@@ -8,6 +8,7 @@ import VideoScene from './components/VideoScene';
 import WelcomePage from './components/WelcomePage';
 import AudioScene from './components/AudioScene';
 import ChatScene from './components/ChatScene';
+import AvocadoScene from './components/AvocadoScene';
 import videoSource from './assets/videos/WhatIf_Screen_002_Video.mp4';
 
 const App: React.FC = () => {
@@ -37,9 +38,13 @@ const App: React.FC = () => {
               <ChatScene />
             </Scene>
 
-            <Scene id="scene-4" snapIntoPlace>
+            <Scene id="scene-4" snapIntoPlace isScrollable>
+              <AvocadoScene />
+            </Scene>
+
+            <Scene id="scene-5" snapIntoPlace>
               <PlaceholderScene
-                text="Dies ist Scene 4 mit Snapping-Verhalten"
+                text="Dies ist Scene 5 mit Snapping-Verhalten"
               />
             </Scene>
         </div>

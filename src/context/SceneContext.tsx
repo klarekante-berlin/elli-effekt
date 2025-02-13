@@ -7,6 +7,7 @@ interface SceneContextValue {
     isActive: boolean;
     isAnimating: boolean;
     snapIntoPlace: boolean;
+    isScrollable: boolean;
 }
 
 const SceneContext = createContext<SceneContextValue | undefined>(undefined);
