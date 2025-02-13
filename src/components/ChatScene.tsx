@@ -83,8 +83,8 @@ const ChatScene: React.FC = () => {
     console.log('Starting new message animation:', currentIndexRef.current);
     
     const messageHeight = commentsRef.current.children[0]?.clientHeight || 80;
+    const messageSpacing = 12;
     const tl = gsap.timeline({
-      id: "messageAnimation",
       onStart: () => console.log('Timeline started'),
       onComplete: () => console.log('Timeline completed')
     });
@@ -92,12 +92,9 @@ const ChatScene: React.FC = () => {
     const newComment = comments[currentIndexRef.current];
     console.log('Adding new comment:', newComment.text);
 
-    // Update state with new message
+    // First, add the new message to state
     setVisibleComments(prev => {
       console.log('Current visible messages:', prev.length);
-      if (prev.length >= visibleMessagesCount) {
-        return [...prev, newComment];
-      }
       return [...prev, newComment];
     });
 
@@ -108,6 +105,7 @@ const ChatScene: React.FC = () => {
       console.log('Total messages in DOM:', messages.length);
       
       const newMessageElement = messages[messages.length - 1];
+      let currentY = 0;
 
       if (messages.length <= visibleMessagesCount) {
         console.log('Initial animation for first messages');
@@ -120,7 +118,7 @@ const ChatScene: React.FC = () => {
           },
           {
             opacity: 1,
-            y: 0,
+            y: currentY,
             scale: 1,
             duration: 0.5,
             ease: 'back.out(1.2)',
@@ -128,44 +126,48 @@ const ChatScene: React.FC = () => {
           }
         );
       } else {
-        // Phase 1: Fade out top message
-        console.log('Phase 1: Fading out top message');
+        // Create a state snapshot before animation
+        const currentMessages = messages.slice(0, -1); // Exclude new message
+        let accumulatedHeight = 0;
+
+        // Phase 1 & 2: Combine fade out and move up
         tl.to(messages[0], {
           opacity: 0,
-          y: -messageHeight/2,
+          y: -60,
           scale: 0.95,
-          duration: 0.5,
+          filter: 'blur(4px)',
+          duration: 0.4,
           ease: 'power2.inOut',
           onComplete: () => {
             console.log('Top message fade out completed');
-            setVisibleComments(prev => prev.slice(1));
+            setVisibleComments(prev => {
+              const next = prev.slice(1);
+              console.log('Updating visible messages:', next.length);
+              return next;
+            });
           }
         });
 
-        // Phase 2: Stagger list movement
-        const messagesToMove = messages.slice(1, -1);
-        console.log('Phase 2: Starting stagger animation for', messagesToMove.length, 'messages');
-        
-        tl.to(messagesToMove, {
-          y: `-=${messageHeight + 12}`,
-          duration: 0.8,
+        // Move all remaining messages up together with stagger
+        tl.to(messages.slice(1, -1), {
+          y: (index) => `-=${messageHeight + messageSpacing}`,
+          duration: 0.6,
           stagger: {
-            amount: 0.4, // Total time to stagger all items
+            amount: 0.4,
             from: "start",
             ease: "power2.inOut",
             onStart: function() {
-              console.log('Stagger started for message:', this.targets()[0].textContent);
+              console.log('Starting stagger for:', this.targets().length, 'messages');
             },
             onComplete: function() {
-              console.log('Stagger completed for message:', this.targets()[0].textContent);
+              console.log('Completed stagger for all messages');
             }
           },
           ease: 'power2.inOut',
           clearProps: 'transform'
-        }, '>');
+        }, '>-0.2');
 
         // Phase 3: Animate new message
-        console.log('Phase 3: Animating new message');
         tl.fromTo(newMessageElement,
           {
             opacity: 0,
@@ -189,13 +191,13 @@ const ChatScene: React.FC = () => {
           '>-0.2'
         );
 
-        // Cleanup at the end of the timeline
+        // Add a final position check
         tl.add(() => {
-          console.log('Final cleanup');
-          messages.forEach(msg => {
-            gsap.set(msg, { clearProps: 'all' });
+          console.log('Finalizing positions');
+          gsap.set(messages.slice(1), {
+            clearProps: 'transform'
           });
-        });
+        }, '>');
       }
     });
   }, [playMessageSound, visibleMessagesCount]);
@@ -255,15 +257,6 @@ const ChatScene: React.FC = () => {
     });
   }, [animateNextMessage]);
 
-  // Add GSDevTools setup
-  useGSAP(() => {
-    GSDevTools.create({
-      container: "#gsap-devtools",
-      globalSync: true,
-      visibility: 'visible',
-      minimal: false
-    });
-  }, []);
 
   return (
     <div className="chat-scene">
@@ -271,26 +264,11 @@ const ChatScene: React.FC = () => {
       <div 
         ref={commentsRef} 
         className="chat-messages"
-        style={{
-          position: 'relative',
-          height: '480px',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          padding: '20px'
-        }}
       >
         {visibleComments.map((comment, index) => (
           <div 
             key={`${comment.name}-${index}`}
             className={`comment ${comment.isRight ? 'right' : 'left'}`}
-            style={{ 
-              position: 'relative',
-              transform: 'translate3d(0, 0, 0)',
-              minHeight: 'fit-content',
-              margin: 0
-            }}
           >
             <div className="avatar-container">
               <div className="avatar" />
