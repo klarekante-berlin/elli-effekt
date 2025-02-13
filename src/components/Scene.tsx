@@ -1,13 +1,14 @@
 // src/components/Scene.tsx
 import { FC, ReactNode, useRef, useEffect, useCallback } from 'react';
-import { useApp, SceneId } from '../context/AppContext';
-import { SceneProvider } from '../context/SceneContext';
+import { useScene } from '../context/SceneContext';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useLenis } from 'lenis/react';
 import { useScrollSnapping } from '../hooks/useScrollSnapping';
+import { SceneId } from '../App';
+import { SceneContextProvider } from '../context/SceneContext';
 
 interface SceneProps {
-    id: string;
+    id: SceneId;
     snapIntoPlace?: boolean;
     isScrollable?: boolean;
     children: ReactNode;
@@ -23,27 +24,62 @@ export const Scene: FC<SceneProps> = ({
     onActivate,
     onDeactivate
 }) => {
-    const { state, dispatch } = useApp();
+    const { state, dispatch } = useScene();
     const containerRef = useRef<HTMLDivElement>(null);
     const lenis = useLenis();
+    const isActive = state.scenes[id]?.isActive ?? false;
+    const hasSnapped = useRef(false);
     
-    const { isScrolling, setIsScrolling, isAnimationScene, setIsAnimationScene } = useScrollSnapping(
-        (!isScrollable && snapIntoPlace) ? lenis : null
+    const { isScrolling } = useScrollSnapping(
+        (snapIntoPlace) ? lenis : null
     );
 
     const handleSceneActivation = useCallback(() => {
-        dispatch({ type: 'SET_CURRENT_SCENE', payload: id as SceneId });
+        dispatch({
+            type: 'HANDLE_SCENE_ACTIVATION',
+            payload: {
+                id,
+                isScrollable
+            }
+        });
+
+        dispatch({
+            type: 'UPDATE_SCENE',
+            payload: {
+                id,
+                updates: { 
+                    isActive: true,
+                    isAnimating: isScrolling
+                }
+            }
+        });
+
+        dispatch({ type: 'SET_CURRENT_SCENE', payload: id });
         onActivate?.();
-    }, [id, dispatch, onActivate]);
+    }, [id, dispatch, isScrolling, isScrollable, onActivate]);
 
     const handleSceneDeactivation = useCallback(() => {
+        hasSnapped.current = false;
+        dispatch({
+            type: 'UPDATE_SCENE',
+            payload: {
+                id,
+                updates: { 
+                    isActive: false,
+                    isAnimating: false,
+                    snapIntoPlace: snapIntoPlace
+                }
+            }
+        });
         if (state.currentScene === id) {
             dispatch({ type: 'SET_CURRENT_SCENE', payload: null });
         }
         onDeactivate?.();
-    }, [id, state.currentScene, dispatch, onDeactivate]);
+    }, [id, state.currentScene, dispatch, onDeactivate, snapIntoPlace]);
     
     useEffect(() => {
+        if (!containerRef.current) return;
+
         const trigger = ScrollTrigger.create({
             trigger: containerRef.current,
             start: 'top center',
@@ -52,44 +88,25 @@ export const Scene: FC<SceneProps> = ({
             onEnterBack: handleSceneActivation,
             onLeave: handleSceneDeactivation,
             onLeaveBack: handleSceneDeactivation,
-            onUpdate: (self) => {
-                if (isScrollable) {
-                    // Wenn wir uns der scrollbaren Szene nähern (ab 50% Sichtbarkeit)
-                    if (self.progress > 0.5 && !state.isSnappingDisabled) {
-                        dispatch({ type: 'SET_SNAPPING_ENABLED', payload: false });
-                    }
-                    // Wenn wir uns von der scrollbaren Szene entfernen (unter 50% Sichtbarkeit)
-                    else if (self.progress < 0.5 && state.isSnappingDisabled) {
-                        dispatch({ type: 'SET_SNAPPING_ENABLED', payload: true });
-                    }
-                }
-            }
+            // Add markers for debugging if needed
+            // markers: true,
         });
 
         return () => {
             trigger.kill();
         };
-    }, [handleSceneActivation, handleSceneDeactivation, isScrollable, dispatch, state.isSnappingDisabled]);
-
-    const sceneContextValue = {
-        id: id as SceneId,
-        isActive: state.currentScene === id,
-        isAnimating: isScrolling,
-        snapIntoPlace,
-        isScrollable
-    };
+    }, [handleSceneActivation, handleSceneDeactivation]);
 
     return (
-        <section 
-            ref={containerRef} 
-            className={`scene scene-${id}${snapIntoPlace && !isScrollable ? ' snap-scene' : ''}`}
-            data-scene-id={id}
-            data-scene-active={state.currentScene === id}
-            data-scrollable={isScrollable}
-        >
-            <SceneProvider value={sceneContextValue}>
+        <SceneContextProvider id={id}>
+            <div className={`scene scene-${id}${state.scenes[id]?.snapIntoPlace ? ' snap-scene' : ''}`}
+                data-scene-id={id}
+                data-scene-active={isActive}
+                data-scrollable={isScrollable}
+                ref={containerRef}
+            >
                 {children}
-            </SceneProvider>
-        </section>
+            </div>
+        </SceneContextProvider>
     );
 };

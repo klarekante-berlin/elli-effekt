@@ -7,14 +7,14 @@ import { ReactComponent as AvocadoIcon } from '../assets/svg/avocado.svg';
 import { ReactComponent as AvocadoFilledIcon } from '../assets/svg/avocado_filled.svg';
 import { ReactComponent as BathtubIcon } from '../assets/svg/bathtub.svg';
 import '../styles/AvocadoScene.css';
-
+import { useScene } from '../context/SceneContext';
 gsap.registerPlugin(ScrollTrigger);
 
 interface AvocadoSceneProps {
-  //isActive: boolean;
+  onStart: () => void;
 }
 
-const AvocadoScene: React.FC<AvocadoSceneProps> = ({ isActive }) => {
+const AvocadoScene: React.FC<AvocadoSceneProps> = ({ onStart }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const comparisonRef = useRef<HTMLDivElement>(null);
@@ -24,6 +24,7 @@ const AvocadoScene: React.FC<AvocadoSceneProps> = ({ isActive }) => {
   const tub1Ref = useRef<SVGSVGElement>(null);
   const tub2Ref = useRef<SVGSVGElement>(null);
   const tub3Ref = useRef<SVGSVGElement>(null);
+  const { isActive } = useScene();
 
   useGSAP(() => {
     if (!textRef.current) return;
