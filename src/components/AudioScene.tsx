@@ -162,16 +162,16 @@ const AudioScene: React.FC<AudioSceneProps> = ({
         <div className="audio-controls">
           <button
             onClick={() => audioRef.current?.paused ? audioRef.current?.play() : audioRef.current?.pause()}
-            className={`control-button ${!audioRef.current?.paused ? 'playing' : ''}`}
+            className={`replay-button ${!audioRef.current?.paused ? 'playing' : ''}`}
             aria-label={!audioRef.current?.paused ? 'Pause' : 'Play'}
           >
             {!audioRef.current?.paused ? (
-              <svg viewBox="0 0 24 24" width="24" height="24">
+              <svg viewBox="0 0 24 24" width="24" height="24" style={{ fill: 'white' }}>
                 <rect x="6" y="4" width="4" height="16" />
                 <rect x="14" y="4" width="4" height="16" />
               </svg>
             ) : (
-              <svg viewBox="0 0 24 24" width="24" height="24">
+              <svg viewBox="0 0 24 24" width="24" height="24" style={{ fill: 'white' }}>
                 <polygon points="5,3 19,12 5,21" />
               </svg>
             )}

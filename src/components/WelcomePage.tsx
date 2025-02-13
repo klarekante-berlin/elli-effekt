@@ -147,7 +147,7 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ onStart }) => {
             <p className="info-text">
               Zur Info: Viele Inhalte sind KI-generiert.
             </p>
-            <button onClick={onStart} className="start-button">
+            <button onClick={onStart} className="replay-button">
               START
             </button>
           </div>

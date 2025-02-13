@@ -9,7 +9,8 @@
   --breakpoint-xxl: 1400px;
 
   --color-primary: #F2B19F;
-  --color-primary-light: #f7c4b7;
+  --color-primary-dark: #CB7B66;
+  --color-secondary: #F2F375;
   --color-text: #333;
   --color-background: var(--color-primary);
 }
