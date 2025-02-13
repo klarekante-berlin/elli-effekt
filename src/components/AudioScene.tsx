@@ -18,7 +18,7 @@ const AudioScene: React.FC<AudioSceneProps> = ({
   const splitText = useRef<SplitType | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
-  const { isActive } = useSceneState();
+  const { isActive = false } = useSceneState() ?? {};
 
   // Audio laden und initialisieren
   useEffect(() => {

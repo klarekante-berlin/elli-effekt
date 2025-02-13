@@ -1,5 +1,5 @@
 import { FC, useRef, useEffect } from 'react';
-import { useScene } from '../context/SceneContext';
+import { useSceneState } from '../context/SceneContext';
 
 interface VideoSceneProps {
     videoSource: string;
@@ -15,7 +15,8 @@ const VideoScene: FC<VideoSceneProps> = ({
     loop = true
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const { isActive } = useScene();
+    const { isActive = false } = useSceneState() ?? {};
+
 
     // Video-Steuerung basierend auf Scene-Status
     useEffect(() => {

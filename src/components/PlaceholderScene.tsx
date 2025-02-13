@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { useScene } from '../context/SceneContext';
+import { useSceneState } from '../context/SceneContext';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import '../styles/PlaceholderScene.css';
@@ -17,7 +17,8 @@ const PlaceholderScene: React.FC<PlaceholderSceneProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const wordsRef = useRef<HTMLSpanElement[]>([]);
-  const { isActive } = useScene();
+  const { isActive = false } = useSceneState() ?? {};
+
   const timeline = useRef(gsap.timeline({ paused: true }));
 
   // Timeline Setup

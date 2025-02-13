@@ -10,7 +10,8 @@ interface WelcomePageProps {
 
 const WelcomePage: React.FC<WelcomePageProps> = ({ onStart }) => {
   const headphonesRef = useRef<SVGSVGElement>(null);
-  const { isActive } = useSceneState();
+  const { isActive = false } = useSceneState() ?? {};
+
   const timeline = useRef(gsap.timeline({ paused: true }));
   const splitRefs = useRef<{ title?: SplitType; text?: SplitType }>({});
 

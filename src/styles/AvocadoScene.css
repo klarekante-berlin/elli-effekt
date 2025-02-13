@@ -1,28 +1,40 @@
 .avocado-scene {
   width: 100%;
-  min-height: 100vh;
+  min-height: 200vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 2rem;
+  padding: 0rem;
   background-color: var(--background-color);
   gap: 4rem;
-  overflow: hidden;
+  overflow: visible;
   will-change: transform;
+}
+
+.scene-content {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4rem;
+  padding: 2rem;
 }
 
 .avocado-text {
   font-family: var(--font-amatic);
   font-weight: 700;
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(4rem, 4vw, 3rem);
   line-height: 1.2;
   text-align: center;
   color: white;
   max-width: 1000px;
   margin: 0 auto;
   letter-spacing: 0.02em;
-  padding-top: 2rem;
+  padding-top: 4rem;
   will-change: transform, opacity;
 }
 
@@ -36,7 +48,7 @@
 }
 
 .avocado-text .highlight {
-  color: #FFD700;
+  color: #F2F375;
   font-weight: 700;
   text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
 }
@@ -49,27 +61,21 @@
   margin: 2rem 0;
   width: 100%;
   max-width: 1200px;
-  visibility: hidden;
+  padding: 0 2rem;
   will-change: transform, opacity;
 }
 
 .avocado-container {
-  width: clamp(120px, 25vw, 200px);
+  width: clamp(200px, 15vw, 150px);
   aspect-ratio: 1;
   position: relative;
   will-change: transform;
 }
 
-.avocado-parts {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  will-change: transform;
-}
 
 .avocado-svg {
   position: absolute;
+  top: 100px;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -80,26 +86,34 @@
   z-index: 2;
 }
 
+.avocado-filled {
+  z-index: 1;
+  opacity: 0;
+  transform-origin: center;
+}
+
 .equals {
   font-family: var(--font-amatic);
-  font-size: 4rem;
-  color: white;
+  font-size: 10rem;
+  color: black;
   opacity: 0;
   will-change: transform, opacity;
 }
 
 .bathtubs-container {
   display: flex;
-  gap: 1rem;
+  gap: 2rem;
   align-items: center;
   will-change: transform;
+  flex-shrink: 0;
 }
 
 .bathtub-wrapper {
   position: relative;
-  width: clamp(100px, 20vw, 160px);
+  width: clamp(250px, 15vw, 120px);
   aspect-ratio: 1.5;
   will-change: transform, opacity;
+  overflow: hidden;
 }
 
 .bathtub-svg {
@@ -110,17 +124,10 @@
   will-change: transform, opacity;
 }
 
-.water {
-  position: absolute;
-  bottom: 15%;
-  left: 10%;
-  width: 80%;
-  height: 50%;
-  background: linear-gradient(180deg, rgba(79, 164, 222, 0.8) 0%, rgba(79, 164, 222, 0.9) 100%);
-  border-radius: 0 0 10px 10px;
+.bathtub-svg .fill {
   transform-origin: bottom;
+  opacity: 0;
   will-change: transform, opacity;
-  backdrop-filter: blur(4px);
 }
 
 .result-text {
@@ -156,56 +163,6 @@
   position: relative;
 }
 
-.avocado-flesh {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.wave-container {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 30%;
-  z-index: 2;
-  pointer-events: none;
-  opacity: 0;
-}
-
-.wave-container svg {
-  width: 100%;
-  height: 100%;
-}
-
-.wave {
-  transform-origin: center;
-  will-change: transform;
-}
-
-.wave1 {
-  opacity: 1;
-}
-
-.wave2 {
-  opacity: 0.7;
-}
-
-.avocado-filled {
-  z-index: 1;
-  fill: #4A6741;
-}
-
-@keyframes wave {
-  0%, 100% {
-    transform: scaleY(1);
-  }
-  50% {
-    transform: scaleY(1.02);
-  }
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
   .comparison-container {
@@ -231,7 +188,7 @@
   }
 
   .avocado-text {
-    font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+    font-size: clamp(4rem, 3.5vw, 2.5rem);
     padding: 1rem;
   }
   
@@ -252,4 +209,39 @@
 
 .avocado-text .word:last-child {
   margin-right: 0;
+}
+
+.result-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-top: 2rem;
+  padding-right: 2rem;
+}
+
+.comparison-text {
+  font-size: clamp(6rem, 3vw, 2rem);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-amatic);
+  color: white;
+}
+
+.water-text {
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  color: var(--text-secondary);
+  font-family: var(--font-amatic);
+}
+
+.bath-fill {
+  position: absolute;
+  top: 0;
+  left:0;
+  width: clamp(120px, 15vw, 120px);
+  height: 50%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  transform-origin: bottom;
+  opacity: 0;
+  will-change: transform, opacity;
 } 
