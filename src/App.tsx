@@ -11,6 +11,7 @@ import ChatScene from './components/ChatScene';
 import AvocadoScene from './components/AvocadoScene';
 import scene2Video from './assets/videos/scene_02.mp4';
 import scene4Video from './assets/videos/scene_04.mp4';
+import scene6Video from './assets/videos/scene_06.mp4';
 
 // First define the scenes configuration
 const SCENES = [
@@ -20,7 +21,8 @@ const SCENES = [
   { id: 'scene-3', component: ChatScene, snapIntoPlace: true },
   { id: 'scene-4', component: VideoScene, props: { videoSource: scene4Video }, snapIntoPlace: true },
   { id: 'scene-5', component: AvocadoScene, snapIntoPlace: true, isScrollable: true },
-  { id: 'scene-6', component: PlaceholderScene, props: { text: "Dies ist Scene 5 mit Snapping-Verhalten" }, snapIntoPlace: true }
+  { id: 'scene-6', component: VideoScene, props: { videoSource: scene6Video }, snapIntoPlace: true  },
+  { id: 'scene-67', component: PlaceholderScene, props: { text: "Dies ist Scene 5 mit Snapping-Verhalten" }, snapIntoPlace: true }
 ] as Array<{
   id: string;
   component: React.ComponentType<any>;
