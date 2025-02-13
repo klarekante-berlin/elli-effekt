@@ -1,5 +1,7 @@
 import { FC, useRef, useEffect, memo } from 'react';
 import { useSceneState } from '../context/SceneContext';
+import '../styles/VideoScene.css';
+
 
 interface VideoSceneProps {
     videoSource: string;

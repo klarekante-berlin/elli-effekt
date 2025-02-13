@@ -57,9 +57,12 @@ const AvocadoScene: React.FC<AvocadoSceneProps> = ({ onStart }) => {
       char.classList.add('highlight');
     });
 
-    // Erste Sequenz: Text, dann Avocado Outline, dann Gleichheitszeichen
+    // Aktualisieren Sie die Timelines, um smoothere Übergänge zu haben
     const sequence1 = gsap.timeline({
-      paused: true
+      paused: true,
+      defaults: {
+        ease: "power2.inOut" // Smootherer Ease
+      }
     }).addLabel('start')
       // Text Animation
       .fromTo(splitText.words,
@@ -72,9 +75,9 @@ const AvocadoScene: React.FC<AvocadoSceneProps> = ({ onStart }) => {
           opacity: 1,
           scale: 1,
           y: 0,
-          duration: 0.8,
-          stagger: 0.1,
-          ease: "power3.out"
+          duration: 1.2,
+          stagger: 0.15,
+          ease: "power2.inOut"
         }
       )
       // Warte bis Text-Animation fertig ist
@@ -115,7 +118,10 @@ const AvocadoScene: React.FC<AvocadoSceneProps> = ({ onStart }) => {
 
     // Zweite Sequenz: Badewannen erscheinen, dann Avocado füllen
     const sequence2 = gsap.timeline({
-      paused: true
+      paused: true,
+      defaults: {
+        ease: "power2.inOut"
+      }
     }).addLabel('start')
       // Dann alle Badewannen
       .fromTo([tub1Ref.current, tub2Ref.current, tub3Ref.current],
@@ -163,7 +169,10 @@ const AvocadoScene: React.FC<AvocadoSceneProps> = ({ onStart }) => {
 
     // Dritte Sequenz: Restliche Badewannen füllen, dann Text
     const sequence3 = gsap.timeline({
-      paused: true
+      paused: true,
+      defaults: {
+        ease: "power2.inOut"
+      }
     }).addLabel('start')
       // Erst die beiden restlichen Badewannen füllen
       .fromTo([fill2Ref.current, fill3Ref.current],
@@ -200,11 +209,13 @@ const AvocadoScene: React.FC<AvocadoSceneProps> = ({ onStart }) => {
     ScrollTrigger.create({
       trigger: containerRef.current,
       start: "top+=300 center",
-      end: 'bottom',
+      end: "top+=800 center", // Definierter Endpunkt
+      scrub: 1, // Smooth scrubbing effect
       onEnter: () => sequence1.play(),
       onLeave: () => sequence1.reverse(),
       onEnterBack: () => sequence1.play(),
       onLeaveBack: () => sequence1.reverse(),
+      toggleActions: "play reverse play reverse", // Explizites Verhalten
       markers: true
     });
 
@@ -212,11 +223,13 @@ const AvocadoScene: React.FC<AvocadoSceneProps> = ({ onStart }) => {
     ScrollTrigger.create({
       trigger: containerRef.current,
       start: "top+=700 center",
-      end: 'bottom',
+      end: "top+=1200 center", // Definierter Endpunkt
+      scrub: 1,
       onEnter: () => sequence2.play(),
       onLeave: () => sequence2.reverse(),
       onEnterBack: () => sequence2.play(),
       onLeaveBack: () => sequence2.reverse(),
+      toggleActions: "play reverse play reverse",
       markers: true
     });
 
@@ -224,11 +237,13 @@ const AvocadoScene: React.FC<AvocadoSceneProps> = ({ onStart }) => {
     ScrollTrigger.create({
       trigger: containerRef.current,
       start: "top+=1000 center",
-      end: 'bottom',
+      end: "top+=1500 center", // Definierter Endpunkt
+      scrub: 1,
       onEnter: () => sequence3.play(),
       onLeave: () => sequence3.reverse(),
       onEnterBack: () => sequence3.play(),
       onLeaveBack: () => sequence3.reverse(),
+      toggleActions: "play reverse play reverse",
       markers: true
     });
 

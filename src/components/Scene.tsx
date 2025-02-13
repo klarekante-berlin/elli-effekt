@@ -99,7 +99,7 @@ export const Scene: FC<SceneProps> = ({
 
     return (
         <SceneContextProvider id={id}>
-            <div className={`scene scene-${id}${state.scenes[id]?.snapIntoPlace ? ' snap-scene' : ''}`}
+            <div className={`scene scene-${id}${id && state.scenes[id]?.snapIntoPlace ? ' snap-scene' : ''}`}
                 data-scene-id={id}
                 data-scene-active={isActive}
                 data-scrollable={isScrollable}
