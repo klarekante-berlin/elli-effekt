@@ -81,6 +81,24 @@ const ChatScene: React.FC = () => {
     const messageHeight = commentsRef.current.children[0]?.clientHeight || 80;
     const timeline = gsap.timeline();
 
+    // Common animation config for new messages
+    const newMessageAnimation = {
+      initial: {
+        opacity: 0,
+        y: 50,
+        scale: 0.9,
+        transformOrigin: 'center bottom'
+      },
+      animate: {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.5,
+        ease: 'back.out(1.2)',
+        clearProps: 'all'
+      }
+    };
+
     // Update state with new message
     setVisibleComments(prev => {
       if (prev.length >= visibleMessagesCount) {
@@ -98,20 +116,8 @@ const ChatScene: React.FC = () => {
       if (messages.length <= visibleMessagesCount) {
         // Initial messages animation (first 6)
         gsap.fromTo(newMessageElement,
-          {
-            opacity: 0,
-            y: 50,
-            scale: 0.9,
-            transformOrigin: 'center bottom'
-          },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.5,
-            ease: 'power2.out',
-            clearProps: 'all'
-          }
+          newMessageAnimation.initial,
+          newMessageAnimation.animate
         );
       } else {
         const tl = gsap.timeline();
@@ -139,25 +145,22 @@ const ChatScene: React.FC = () => {
           },
           ease: 'power3.inOut',
           clearProps: 'transform'
-        }, "+=0.1"); // Start after top message fade out
+        }, "+=0.1");
 
         // 3. Wait for list movement to complete, then animate new message
         tl.fromTo(newMessageElement,
           {
-            opacity: 0,
-            y: 50,
-            scale: 0.95,
-            transformOrigin: 'center bottom'
+            ...newMessageAnimation.initial,
+            y: messageHeight/2 // Slightly different starting position
           },
           {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.5,
-            ease: 'back.out(1.2)',
-            clearProps: 'all'
+            ...newMessageAnimation.animate,
+            duration: 0.6, // Slightly longer duration
+            onComplete: () => {
+              gsap.set(newMessageElement, { clearProps: 'all' });
+            }
           },
-          "+=0.2" // Add delay after list movement
+          "+=0.3" // Longer delay for better visual flow
         );
 
         // Play sound with the new message animation
